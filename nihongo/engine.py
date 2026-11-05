@@ -207,7 +207,10 @@ class Engine:
             level=item.level,
         )
         row = self.db.get_sentence(sid)
-        assert row is not None
+        if row is None:  # pragma: no cover
+            raise RuntimeError(
+                f"a frase {sid} de {item.item_id} sumiu logo após ser gravada"
+            )
         return row
 
     def generate_with_claude(

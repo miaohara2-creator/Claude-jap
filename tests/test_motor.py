@@ -276,3 +276,58 @@ class TestFormatacao(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGravacaoDeFrases(unittest.TestCase):
+    """Regressão: id devolvido ao regravar uma frase já existente.
+
+    O `lastrowid` do SQLite é por conexão, não por tabela. Quando o upsert
+    caía no UPDATE, vinha o id do último INSERT em qualquer tabela (reviews,
+    cards) — um id que não existe em `sentences`. O app quebrava com
+    AssertionError na segunda vez que a mesma frase era oferecida.
+    """
+
+    def setUp(self):
+        self.db = Database(tempfile.mktemp(suffix=".db"))
+        self.addCleanup(self.db.close)
+
+    def _gravar(self):
+        return self.db.save_sentence(
+            "私|base", "Sou eu, pode entrar.", "私です、どうぞ。", level="N5")
+
+    def test_regravar_devolve_o_id_da_propria_frase(self):
+        primeiro = self._gravar()
+        # insere em outras tabelas: é o que move o lastrowid da conexão
+        self.db.conn.execute(
+            "INSERT INTO cards(item_id,lemma,surface,reading,form_id,level,pt,created_at)"
+            " VALUES('x|base','x','x','x','base','N5','x','2026-01-01')")
+        for _ in range(3):
+            self.db.log_review(
+                item_id="私|base", sentence_id=primeiro, answer="a", keyword_ok=1,
+                rating=3, elapsed_days=0, scheduled_days=1, stability=1,
+                difficulty=5, retrievability=0, state_before="new")
+        segundo = self._gravar()
+        self.assertEqual(segundo, primeiro)
+        self.assertIsNotNone(self.db.get_sentence(segundo))
+        self.assertEqual(self.db.count_sentences(), 1)
+
+    def test_regravar_atualiza_o_conteudo(self):
+        sid = self._gravar()
+        self.db.save_sentence("私|base", "Sou eu, pode entrar.", "私だよ。",
+                              note="nova nota", level="N5")
+        linha = self.db.get_sentence(sid)
+        self.assertEqual(linha["ja"], "私だよ。")
+        self.assertEqual(linha["note"], "nova nota")
+
+    def test_rodada_repetida_com_a_mesma_frase_nao_quebra(self):
+        """O caminho exato do erro relatado: mesma palavra, frase já no banco."""
+        eng = motor(new_per_day=1)
+        primeira = eng.next_round(force="nova")
+        eng.submit(primeira.item.item_id, primeira.sentence["id"], primeira.sentence["ja"])
+        item = primeira.item
+        for _ in range(3):
+            # força o corpus a regravar a mesma frase
+            conhecidos = eng.db.known_item_ids() - {item.item_id}
+            frase, origem = eng.sentence_for(item, conhecidos, "nova", [])
+            self.assertIsNotNone(eng.db.get_sentence(frase["id"]))
+        self.assertEqual(eng.db.count_sentences(), 1)

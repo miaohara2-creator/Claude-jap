@@ -260,7 +260,7 @@ class Database:
         source: str = "claude",
         level: str = "N5",
     ) -> int:
-        cur = self.conn.execute(
+        self.conn.execute(
             """INSERT INTO sentences
                  (item_id, pt, ja, ja_reading, keyword_pt, tokens, note, source, level, created_at)
                VALUES (?,?,?,?,?,?,?,?,?,?)
@@ -275,11 +275,15 @@ class Database:
             ),
         )
         self.conn.commit()
-        if cur.lastrowid:
-            return int(cur.lastrowid)
+        # Nada de `cursor.lastrowid` aqui: quando o upsert cai no UPDATE, o
+        # SQLite devolve o id do último INSERT feito na CONEXÃO -- que pode ser
+        # de outra tabela (reviews, cards) e não existir em `sentences`.
+        # A chave única (item_id, pt) resolve o id sem ambiguidade.
         row = self.conn.execute(
             "SELECT id FROM sentences WHERE item_id = ? AND pt = ?", (item_id, pt)
         ).fetchone()
+        if row is None:  # pragma: no cover - a chave única torna isso impossível
+            raise RuntimeError(f"frase não encontrada após gravar: {item_id}")
         return int(row["id"])
 
     def sentences_for_item(self, item_id: str) -> list[dict]:
