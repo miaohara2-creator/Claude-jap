@@ -159,6 +159,35 @@ class TestLacoDeGeracao(unittest.TestCase):
         self.assertIn(rodada.source, ("corpus", "local"))
         self.assertTrue(any("gerador local" in a or "tentativas" in a for a in rodada.warnings))
 
+    def test_erro_de_autenticacao_desliga_a_api_e_explica(self):
+        class ClienteQueFalha(ClienteFalso):
+            def generate_sentence(self, system, user):
+                erro = RuntimeError("Error code: 401 - authentication_error")
+                erro.status_code = 401
+                raise erro
+
+        eng = self.motor(ClienteQueFalha([]))
+        rodada = eng.next_round()
+        self.assertIn(rodada.source, ("corpus", "local"))
+        self.assertTrue(any("recusou a chave" in a for a in rodada.warnings))
+        self.assertIsNotNone(eng.api_desativada)
+        self.assertEqual(eng.stats()["gerador"], "local (a API da Claude recusou a chave)")
+        # não insiste nas rodadas seguintes
+        segunda = eng.next_round()
+        self.assertFalse(any("recusou a chave" in a for a in segunda.warnings))
+
+    def test_erro_temporario_nao_desliga_a_api(self):
+        class ClienteInstavel(ClienteFalso):
+            def generate_sentence(self, system, user):
+                erro = RuntimeError("Error code: 429 - rate_limit_error")
+                erro.status_code = 429
+                raise erro
+
+        eng = self.motor(ClienteInstavel([]))
+        rodada = eng.next_round()
+        self.assertTrue(any("Limite de requisições" in a for a in rodada.warnings))
+        self.assertIsNone(eng.api_desativada)
+
     def test_contabiliza_tokens(self):
         boa = {"pt": "Sou eu mesmo na porta de casa.", "keyword_pt": "eu",
                "ja": "私です。", "ja_reading": "わたしです。", "words_used": ["私"], "note": ""}
@@ -169,3 +198,39 @@ class TestLacoDeGeracao(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestChaveLocal(unittest.TestCase):
+    """Leitura da chave a partir de chave-api.txt (conveniência no Windows)."""
+
+    def setUp(self):
+        import os
+        from pathlib import Path
+        self.dir = Path(tempfile.mkdtemp())
+        self.antigo = os.environ.pop("ANTHROPIC_API_KEY", None)
+        self.addCleanup(self._restaurar)
+
+    def _restaurar(self):
+        import os
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+        if self.antigo:
+            os.environ["ANTHROPIC_API_KEY"] = self.antigo
+
+    def test_le_do_arquivo_ignorando_comentarios(self):
+        import os
+        from nihongo.config import carregar_chave_local
+        (self.dir / "chave-api.txt").write_text("# minha chave\n\n  sk-ant-abc  \n")
+        self.assertEqual(carregar_chave_local(self.dir), "arquivo")
+        self.assertEqual(os.environ["ANTHROPIC_API_KEY"], "sk-ant-abc")
+
+    def test_ambiente_tem_precedencia(self):
+        import os
+        from nihongo.config import carregar_chave_local
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-do-ambiente"
+        (self.dir / "chave-api.txt").write_text("sk-ant-do-arquivo")
+        self.assertEqual(carregar_chave_local(self.dir), "ambiente")
+        self.assertEqual(os.environ["ANTHROPIC_API_KEY"], "sk-ant-do-ambiente")
+
+    def test_sem_arquivo_nem_ambiente(self):
+        from nihongo.config import carregar_chave_local
+        self.assertIsNone(carregar_chave_local(self.dir))

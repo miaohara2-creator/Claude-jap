@@ -87,6 +87,8 @@ class Engine:
         self.client = client if client is not None else ClaudeClient()
         self.rng = rng or random.Random()
         self.corpus = corpus_entries()
+        #: motivo pelo qual paramos de chamar a API nesta execucao (ou None)
+        self.api_desativada: str | None = None
 
     # -- configuracao -----------------------------------------------------
 
@@ -212,7 +214,7 @@ class Engine:
         self, item: Item, known_ids: set[str], warnings: list[str]
     ) -> dict | None:
         """Pede a frase a Claude, revalidando e reenviando o erro em caso de falha."""
-        if not self.client or not self.client.available():
+        if not self.client or not self.client.available() or self.api_desativada:
             return None
         known = sorted(self._known_items(known_ids), key=lambda it: it.sort_key)
         recent = [
@@ -235,7 +237,11 @@ class Engine:
                 warnings.append(str(exc))
                 return None
             except Exception as exc:  # erro de rede/API
-                warnings.append(f"Falha ao falar com a API da Claude: {exc}")
+                motivo, definitivo = explicar_erro_api(exc)
+                warnings.append(motivo)
+                if definitivo:
+                    # nao adianta insistir a cada rodada: desliga ate reiniciar
+                    self.api_desativada = motivo
                 return None
 
             self._count_tokens(result.input_tokens, result.output_tokens)
@@ -572,11 +578,12 @@ class Engine:
             "entrada": int(self.setting("tokens_entrada") or 0),
             "saida": int(self.setting("tokens_saida") or 0),
         }
-        base["gerador"] = (
-            f"Claude ({self.client.model})"
-            if self.client and self.client.available()
-            else "local (sem ANTHROPIC_API_KEY)"
-        )
+        if self.api_desativada:
+            base["gerador"] = "local (a API da Claude recusou a chave)"
+        elif self.client and self.client.available():
+            base["gerador"] = f"Claude ({self.client.model})"
+        else:
+            base["gerador"] = "local (sem ANTHROPIC_API_KEY)"
         return base
 
     def agenda(self, limit: int = 100) -> list[dict]:
@@ -590,6 +597,46 @@ class Engine:
             row["dificuldade"] = round(row["difficulty"], 2)
             out.append(row)
         return out
+
+
+def explicar_erro_api(exc: Exception) -> tuple[str, bool]:
+    """Traduz a falha da API para o usuário.
+
+    Devolve (mensagem, definitivo). `definitivo` indica que não adianta tentar
+    de novo nesta execução — chave inválida ou sem crédito, por exemplo.
+    """
+    status = getattr(exc, "status_code", None)
+    texto = str(exc).lower()
+
+    if status == 401 or "authentication_error" in texto or "invalid x-api-key" in texto:
+        return (
+            "A API da Claude recusou a chave (401). Confira o conteúdo do arquivo "
+            "chave-api.txt ou a variável ANTHROPIC_API_KEY. Seguindo com o gerador "
+            "local até você corrigir e reiniciar o aplicativo.",
+            True,
+        )
+    if status == 403 or "permission_error" in texto:
+        return (
+            "A chave não tem permissão para usar este modelo (403). Seguindo com o "
+            "gerador local nesta execução.",
+            True,
+        )
+    if status == 402 or "credit balance" in texto or "billing" in texto:
+        return (
+            "A conta da API está sem crédito. Seguindo com o gerador local nesta "
+            "execução.",
+            True,
+        )
+    if status == 429 or "rate_limit" in texto:
+        return ("Limite de requisições atingido; vou tentar de novo na próxima "
+                "rodada.", False)
+    if status is not None and 500 <= int(status) < 600:
+        return (f"A API da Claude teve um erro temporário ({status}); tento de novo "
+                "na próxima rodada.", False)
+    if "connection" in texto or "timeout" in texto or "network" in texto:
+        return ("Não consegui falar com a API da Claude (rede). Usando o gerador "
+                "local nesta rodada.", False)
+    return (f"Falha ao falar com a API da Claude: {exc}", False)
 
 
 def humanize_days(days: float) -> str:

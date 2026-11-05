@@ -55,24 +55,50 @@ escondida e você precisa lembrar.
 
 ## Instalação
 
-Requer apenas Python 3.11+. O pacote `anthropic` é opcional, mas é ele que
-permite a Claude escrever as frases:
+### Windows — duplo clique
+
+Dê um **duplo clique em `iniciar.bat`**. Na primeira vez ele prepara tudo
+sozinho (cerca de um minuto): cria um ambiente Python próprio na pasta
+`.venv`, instala a biblioteca da Claude e pergunta a sua chave da API. Depois
+disso, cada clique sobe o aplicativo em poucos segundos e abre o navegador.
+
+O único pré-requisito é o **Python 3.11 ou mais novo**. Se não tiver, o
+atalho avisa e manda o link: baixe em <https://www.python.org/downloads/> e
+marque **"Add python.exe to PATH"** na tela de instalação.
+
+Para fechar o aplicativo, feche a janela preta que fica aberta.
+
+### Qualquer sistema — linha de comando
 
 ```bash
-pip install anthropic          # opcional, mas recomendado
-export ANTHROPIC_API_KEY=sk-ant-...   # ou: ant auth login
+pip install anthropic                  # opcional, mas recomendado
+export ANTHROPIC_API_KEY=sk-ant-...    # ou: ant auth login
 python3 app.py
 ```
 
 Abra <http://127.0.0.1:8765>. Sem chave de API o aplicativo continua
 funcionando com o gerador local (ver *Limitações*).
 
+### A chave da API
+
+Em vez da variável de ambiente, você pode criar um arquivo **`chave-api.txt`**
+na pasta do projeto com a chave numa linha (é o que o `iniciar.bat` faz por
+você). A variável de ambiente tem precedência; linhas começadas por `#` são
+ignoradas. O arquivo está no `.gitignore` e nunca é enviado ao repositório.
+
+Se a chave estiver errada, o app não quebra: avisa na tela em bom português,
+passa a usar o gerador local e para de tentar até você corrigir e reiniciar.
+
 ```bash
 python3 app.py --porta 9000            # outra porta
 python3 app.py --banco ~/japones.db    # outro banco
 python3 app.py --modelo claude-sonnet-5-5
 python3 app.py --cli                   # estudar pelo terminal
+python3 app.py --sem-navegador         # não abrir o navegador sozinho
 ```
+
+No Windows, dá para passar as mesmas opções pelo atalho: crie um atalho do
+`iniciar.bat` e acrescente os argumentos no campo *Destino*.
 
 O modelo padrão é `claude-opus-5-5`. Cada frase custa poucos centavos de
 milésimo: o prompt de sistema é marcado para cache e as frases ficam salvas no
@@ -128,6 +154,7 @@ em cada caso.
 ## Estrutura
 
 ```
+iniciar.bat             atalho de duplo clique para Windows
 app.py                  ponto de entrada (servidor web ou --cli)
 nihongo/
   fsrs.py               FSRS-5: estabilidade, dificuldade, agendamento
@@ -139,6 +166,7 @@ nihongo/
   templates.py          gerador local de reserva (corpus + moldes)
   grading.py            correção da resposta
   engine.py             seleção da rodada e aplicação do FSRS
+  config.py             lê a chave da API de chave-api.txt
   server.py / cli.py    interface web e interface de terminal
 data/
   vocab_n5…n1.json      641 lemas → 5.754 formas estudáveis

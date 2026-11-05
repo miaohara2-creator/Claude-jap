@@ -174,11 +174,28 @@ def make_handler(state: AppState):
     return Handler
 
 
+def _abrir_no_navegador(url: str, atraso: float = 1.0) -> None:
+    """Abre a interface no navegador padrao, sem derrubar o servidor se falhar."""
+    import webbrowser
+
+    def alvo() -> None:
+        import time
+
+        time.sleep(atraso)
+        try:
+            webbrowser.open(url)
+        except Exception:  # noqa: BLE001 - navegador e um extra, nao um requisito
+            pass
+
+    threading.Thread(target=alvo, daemon=True).start()
+
+
 def serve(
     db_path: str | Path | None = None,
     host: str = "127.0.0.1",
     port: int = 8765,
     model: str | None = None,
+    abrir_navegador: bool = False,
 ) -> None:
     from .claude_client import ClaudeClient
 
@@ -200,7 +217,9 @@ def serve(
     if "local" in stats["gerador"]:
         print("\n  Atenção: sem ANTHROPIC_API_KEY as frases vêm do corpus local")
         print("  (limitado). Defina a variável para a Claude gerar as frases.")
-    print("\n  Ctrl+C para encerrar.\n")
+    print("\n  Ctrl+C para encerrar (ou feche esta janela).\n")
+    if abrir_navegador:
+        _abrir_no_navegador(f"http://{host}:{port}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

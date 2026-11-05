@@ -9,6 +9,7 @@ Leia o `README.md` para a visão completa. Este arquivo é o resumo operacional.
 ## Comandos
 
 ```bash
+iniciar.bat                             # Windows: duplo clique (cria .venv, instala, abre o navegador)
 python3 app.py                          # interface web em http://127.0.0.1:8765
 python3 app.py --cli                    # modo terminal
 python3 app.py --porta 9000 --banco ~/japones.db
@@ -32,6 +33,7 @@ local. **Não introduza outras dependências sem pedir.**
 | `nihongo/templates.py` | Gerador local de reserva (corpus + moldes). |
 | `nihongo/grading.py` | Correção da resposta do aluno. |
 | `nihongo/engine.py` | Orquestra: escolhe a palavra, obtém a frase, aplica o FSRS. |
+| `nihongo/config.py` | Lê a chave da API de `chave-api.txt` quando não há variável de ambiente. |
 | `nihongo/server.py`, `cli.py` | Interface web (stdlib `http.server`) e terminal. |
 | `web/` | HTML/CSS/JS sem framework nem CDN. |
 
@@ -82,6 +84,15 @@ local. **Não introduza outras dependências sem pedir.**
 `pronoun`, `conjunction`). A ordem dentro do arquivo é a ordem pedagógica.
 Ao acrescentar verbos, rode os testes: `test_conjugacao.py` conjuga o
 vocabulário inteiro e falha se alguma forma quebrar.
+
+## Lançador do Windows (`iniciar.bat`)
+
+Mantenha o arquivo **em ASCII puro e com quebras CRLF**: o `cmd.exe` lê o
+script enquanto executa, e caracteres não-ASCII antes do `chcp 65001` viram
+lixo na tela. O japonês aparece pelo Python, com `PYTHONUTF8=1`.
+O script cria `.venv`, instala `anthropic`, pergunta a chave uma única vez e
+chama `app.py`. Erros previstos (sem Python, Python antigo, falha no venv)
+têm mensagem própria e `pause` para a janela não sumir.
 
 ## Convenções
 
