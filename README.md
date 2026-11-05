@@ -68,6 +68,18 @@ marque **"Add python.exe to PATH"** na tela de instalação.
 
 Para fechar o aplicativo, feche a janela preta que fica aberta.
 
+### Atualizar
+
+Quando sair uma versão nova, dê um **duplo clique em `atualizar.bat`**: ele
+baixa a versão atual, substitui os arquivos do aplicativo e já abre o app.
+
+**O seu progresso (`data\progresso.db`) e a sua chave (`chave-api.txt`) não
+são tocados** — esses arquivos não fazem parte do pacote. O ambiente `.venv`
+também é reaproveitado, então a atualização leva poucos segundos.
+
+Se preferir a linha de comando e tiver clonado o repositório, `git pull` faz
+o mesmo.
+
 ### Qualquer sistema — linha de comando
 
 ```bash
@@ -155,6 +167,7 @@ em cada caso.
 
 ```
 iniciar.bat             atalho de duplo clique para Windows
+atualizar.bat           baixa a versão mais recente e reabre o app
 app.py                  ponto de entrada (servidor web ou --cli)
 nihongo/
   fsrs.py               FSRS-5: estabilidade, dificuldade, agendamento

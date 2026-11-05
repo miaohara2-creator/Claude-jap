@@ -10,6 +10,7 @@ Leia o `README.md` para a visão completa. Este arquivo é o resumo operacional.
 
 ```bash
 iniciar.bat                             # Windows: duplo clique (cria .venv, instala, abre o navegador)
+atualizar.bat                           # Windows: baixa a versão do GitHub por cima e reabre o app
 python3 app.py                          # interface web em http://127.0.0.1:8765
 python3 app.py --cli                    # modo terminal
 python3 app.py --porta 9000 --banco ~/japones.db
@@ -85,7 +86,7 @@ local. **Não introduza outras dependências sem pedir.**
 Ao acrescentar verbos, rode os testes: `test_conjugacao.py` conjuga o
 vocabulário inteiro e falha se alguma forma quebrar.
 
-## Lançador do Windows (`iniciar.bat`)
+## Lançadores do Windows (`iniciar.bat`, `atualizar.bat`)
 
 Mantenha o arquivo **em ASCII puro e com quebras CRLF**: o `cmd.exe` lê o
 script enquanto executa, e caracteres não-ASCII antes do `chcp 65001` viram
@@ -93,6 +94,12 @@ lixo na tela. O japonês aparece pelo Python, com `PYTHONUTF8=1`.
 O script cria `.venv`, instala `anthropic`, pergunta a chave uma única vez e
 chama `app.py`. Erros previstos (sem Python, Python antigo, falha no venv)
 têm mensagem própria e `pause` para a janela não sumir.
+
+`atualizar.bat` baixa o zip do branch pelo codeload, extrai no `%TEMP%` e
+copia por cima da pasta. **Nunca inclua no pacote arquivos do usuário**
+(`chave-api.txt`, `data/progresso.db`, `.venv/`): é o `.gitignore` que
+garante que a atualização não apague o progresso de quem usa o app. Se o
+branch ou o repositório mudarem, atualize as variáveis no topo do script.
 
 ## Convenções
 
