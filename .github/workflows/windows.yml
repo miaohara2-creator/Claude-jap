@@ -145,6 +145,27 @@ jobs:
           if (-not $ok) { throw "sem chave da API o aplicativo deveria subir mesmo assim" }
           Write-Host "OK: subiu sem chave, usando o gerador local."
 
+      - name: diagnostico - set /p com entrada redirecionada
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\setp"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          @"
+          @echo off
+          setlocal enabledelayedexpansion
+          set "X="
+          set /p "X=  prompt: "
+          echo LIDO=[!X!]
+          "@ | Out-File -FilePath "$dir\teste.bat" -Encoding ascii
+          "3" | Out-File -FilePath "$dir\entrada.txt" -Encoding ascii
+          Write-Host "--- via redirecionamento do cmd (< arquivo) ---"
+          cmd /c "cd /d $dir && teste.bat < entrada.txt"
+          Write-Host "--- via -RedirectStandardInput do Start-Process ---"
+          $p = Start-Process cmd.exe -ArgumentList '/c','teste.bat' -WorkingDirectory $dir `
+               -RedirectStandardOutput "$dir\o.txt" -RedirectStandardError "$dir\e.txt" `
+               -RedirectStandardInput "$dir\entrada.txt" -PassThru -NoNewWindow -Wait
+          Get-Content "$dir\o.txt"
+
       - name: menu de credencial - opcao 3 (gerador local) nao trava
         shell: pwsh
         run: |
@@ -156,10 +177,11 @@ jobs:
           # Start-Process nao herda o Push-Location do PowerShell: a pasta e
           # os arquivos de redirecionamento precisam ser explicitos.
           "3" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
-          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8767 --sem-navegador' `
+          $p = Start-Process cmd.exe `
+               -ArgumentList '/c','iniciar.bat --porta 8767 --sem-navegador < resposta.txt' `
                -WorkingDirectory $dir `
                -RedirectStandardOutput "$dir\m.txt" -RedirectStandardError "$dir\me.txt" `
-               -RedirectStandardInput "$dir\resposta.txt" -PassThru -NoNewWindow
+               -PassThru -NoNewWindow
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
             Start-Sleep -Seconds 2
@@ -186,10 +208,11 @@ jobs:
           Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
           Push-Location $dir
           "2`nsk-ant-chave-digitada" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
-          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8768 --sem-navegador' `
+          $p = Start-Process cmd.exe `
+               -ArgumentList '/c','iniciar.bat --porta 8768 --sem-navegador < resposta.txt' `
                -WorkingDirectory $dir `
                -RedirectStandardOutput "$dir\m.txt" -RedirectStandardError "$dir\me.txt" `
-               -RedirectStandardInput "$dir\resposta.txt" -PassThru -NoNewWindow
+               -PassThru -NoNewWindow
           for ($i = 0; $i -lt 90; $i++) {
             Start-Sleep -Seconds 2
             if (Test-Path chave-api.txt) { break }
