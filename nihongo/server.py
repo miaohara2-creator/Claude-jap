@@ -129,6 +129,14 @@ def make_handler(state: AppState):
                         payload = rodada.to_dict()
                         payload["estatisticas"] = state.engine.stats()
                     self._json(payload)
+                elif route == "/api/revelar":
+                    with state.lock:
+                        self._json(
+                            state.engine.revelar(
+                                item_id=data["item_id"],
+                                sentence_id=int(data["sentence_id"]),
+                            )
+                        )
                 elif route == "/api/corrigir":
                     with state.lock:
                         self._json(
@@ -150,6 +158,7 @@ def make_handler(state: AppState):
                                 rating=(int(data["nota"]) if data.get("nota") else None),
                                 hint_used=bool(data.get("dica")),
                                 revealed=bool(data.get("revelou")),
+                                autoavaliacao=bool(data.get("autoavaliacao")),
                             )
                         )
                 elif route == "/api/dica":

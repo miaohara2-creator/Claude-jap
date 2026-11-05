@@ -142,21 +142,37 @@ novo.
 
 ## Usando
 
+O ciclo é o de um baralho de memorização: você **lê a frase em português,
+traduz de cabeça** (mentalmente, em voz alta ou no papel), **revela a
+resposta** e **diz se acertou**. Não é preciso digitar nada — escrever
+japonês exigiria um teclado com IME instalado.
+
 | Ação | Atalho |
 |---|---|
-| Verificar a resposta | `Ctrl`+`Enter` na caixa de texto |
-| Escolher a nota | `1` errei · `2` difícil · `3` bom · `4` fácil |
-| Próxima frase | `Enter` |
+| Mostrar a resposta | `espaço` ou `Enter` |
+| Dizer como foi | `1` errei · `2` difícil · `3` bom · `4` fácil |
+| Próxima frase | `espaço` ou `Enter` |
 
 - **Dica** mostra o significado, a forma pedida, a primeira sílaba e o tamanho
-  da leitura — e limita a nota a "difícil".
-- **Não sei** revela a resposta e conta como erro.
-- A correção mostra a tradução de referência, a leitura em kana, uma nota
-  gramatical e a decomposição da frase palavra por palavra.
+  da leitura, antes de revelar.
+- Ao revelar, aparecem a tradução de referência, a leitura em kana, a
+  palavra-chave em destaque, uma nota gramatical e a decomposição da frase
+  palavra por palavra.
+- Numa palavra **nova** a nota máxima é "bom": a grafia estava na tela.
 
-### Como a resposta é corrigida
+### Prefere digitar?
 
-O que decide acerto ou erro é a **palavra-chave**, não a frase inteira:
+Quem tem teclado japonês pode usar o modo antigo no terminal, em que o app
+corrige a palavra-chave sozinho:
+
+```bash
+python3 app.py --cli --digitar
+```
+
+### Como a resposta é corrigida (modo `--digitar`)
+
+No fluxo padrão quem avalia é você. No modo digitado, o que decide acerto ou
+erro é a **palavra-chave**, não a frase inteira:
 
 - aceita kanji, a leitura só em kana e grafias alternativas (`椅子` ou `いす`);
 - ignora pontuação, espaços e largura de caractere, e trata katakana e
@@ -168,10 +184,10 @@ O que decide acerto ou erro é a **palavra-chave**, não a frase inteira:
   `飲みませんでした`, que é outra palavra-chave;
 - romaji é recusado com um aviso em vez de ser corrigido.
 
-Errar a palavra-chave aplica "errei" no FSRS mesmo que você clique em outra
-nota — o agendador precisa saber o que de fato aconteceu. Entre as notas
-possíveis, a escolha é sua: o app sugere uma e mostra quando a palavra volta
-em cada caso.
+Nesse modo, errar a palavra-chave aplica "errei" no FSRS mesmo que você
+clique em outra nota — ali o app viu o que aconteceu. Na autoavaliação não há
+o que contradizer: a sua nota é o dado. Nos dois casos o app mostra quando a
+palavra volta em cada nota antes de você escolher.
 
 ## Ajustes (aba *Ajustes*)
 

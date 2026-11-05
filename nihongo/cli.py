@@ -21,13 +21,24 @@ def _highlight(pt: str, keyword: str) -> str:
     return f"{pt[:idx]}{BOLD}{YELLOW}{pt[idx:end]}{RESET}{pt[end:]}"
 
 
-def run_cli(db_path: str | None = None, model: str | None = None) -> int:
+def run_cli(db_path: str | None = None, model: str | None = None,
+            digitar: bool = False) -> int:
+    """Estuda pelo terminal.
+
+    Por padrão o fluxo é o mesmo da interface web: a frase aparece, você
+    traduz de cabeça, revela e se avalia. Com `digitar=True` o modo antigo
+    volta -- você escreve a tradução e o app corrige a palavra-chave
+    sozinho, o que exige um teclado japonês (IME).
+    """
     db = Database(db_path) if db_path else Database()
     engine = Engine(db, client=ClaudeClient(model=model))
     stats = engine.stats()
     print(f"\n{BOLD}日本語{RESET} — nível {stats['nivel_atual']} · "
-          f"{stats['palavras_aprendidas']} palavras · gerador: {stats['gerador']}")
-    print(f"{DIM}Enter vazio = revelar a resposta · 'sair' encerra{RESET}\n")
+          f"{stats['palavras_aprendidas']} palavras · {stats['gerador']}")
+    if stats.get("motivo_local"):
+        print(f"{DIM}  {stats['motivo_local']}{RESET}")
+    print(f"{DIM}Enter mostra a resposta · depois você mesmo se avalia · "
+          f"'sair' encerra{RESET}\n")
 
     try:
         while True:
@@ -47,16 +58,24 @@ def run_cli(db_path: str | None = None, model: str | None = None) -> int:
             if rodada.mode == "nova":
                 print(f"{GREEN}  nova palavra → {item.surface} ({item.reading}){RESET}")
 
-            resposta = input("\n  日本語 > ").strip()
-            if resposta.lower() in ("sair", "exit", "quit"):
-                break
-            revelou = not resposta
-
-            fb = engine.check(item.item_id, frase["id"], resposta, revealed=revelou)
-            cor = GREEN if fb["acertou"] else RED
-            print(f"\n  {cor}{fb['mensagem']}{RESET}")
-            print(f"  referência: {BOLD}{fb['referencia']['ja']}{RESET}")
+            if digitar:
+                resposta = input("\n  日本語 > ").strip()
+                if resposta.lower() in ("sair", "exit", "quit"):
+                    break
+                fb = engine.check(item.item_id, frase["id"], resposta,
+                                  revealed=not resposta)
+                cor = GREEN if fb["acertou"] else RED
+                print(f"\n  {cor}{fb['mensagem']}{RESET}")
+            else:
+                entrada = input("\n  traduza mentalmente e tecle Enter para ver > ").strip()
+                if entrada.lower() in ("sair", "exit", "quit"):
+                    break
+                resposta = ""
+                fb = engine.revelar(item.item_id, frase["id"])
+            print(f"\n  referência: {BOLD}{fb['referencia']['ja']}{RESET}")
             print(f"{DIM}  leitura: {fb['referencia']['leitura']}{RESET}")
+            print(f"  palavra-chave: {GREEN}{fb['palavra']['grafia']} "
+                  f"({fb['palavra']['leitura']}){RESET}")
             if fb["referencia"]["nota"]:
                 print(f"{DIM}  {fb['referencia']['nota']}{RESET}")
 
@@ -64,11 +83,13 @@ def run_cli(db_path: str | None = None, model: str | None = None) -> int:
             opcoes = " ".join(
                 f"{n}={RATING_LABELS[n]} ({fb['previsao'][str(n)]})" for n in permitidas
             )
-            escolha = input(f"\n  nota [{opcoes}] (Enter={fb['nota_sugerida']}): ").strip()
-            nota = int(escolha) if escolha.isdigit() and int(escolha) in permitidas else fb["nota_sugerida"]
+            escolha = input(f"\n  você acertou? [{opcoes}] "
+                            f"(Enter={fb['nota_sugerida']}): ").strip()
+            nota = (int(escolha) if escolha.isdigit() and int(escolha) in permitidas
+                    else fb["nota_sugerida"])
 
-            aplicado = engine.submit(item.item_id, frase["id"], resposta, rating=nota,
-                                     revealed=revelou)
+            aplicado = engine.submit(item.item_id, frase["id"], resposta,
+                                     rating=nota, autoavaliacao=not digitar)
             ag = aplicado["agendamento"]
             print(f"  {DIM}próxima revisão em {ag['intervalo_texto']} "
                   f"(S={ag['estabilidade']} D={ag['dificuldade']}){RESET}\n")

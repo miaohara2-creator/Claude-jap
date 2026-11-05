@@ -11,7 +11,7 @@ from http.server import ThreadingHTTPServer
 
 from nihongo.db import Database
 from nihongo.engine import Engine, humanize_days
-from nihongo.fsrs import AGAIN, EASY, GOOD, utcnow
+from nihongo.fsrs import AGAIN, EASY, GOOD, HARD, utcnow
 from nihongo.generator import validate_sentence
 from nihongo.server import AppState, make_handler
 from nihongo.vocab import Vocabulary
@@ -227,6 +227,17 @@ class TestAPI(unittest.TestCase):
         _, dica = self.pedir("/api/dica", {"item_id": item_id})
         self.assertIn("significado", dica)
 
+        _, revelado = self.pedir("/api/revelar", {
+            "item_id": item_id, "sentence_id": sid})
+        self.assertIn("referencia", revelado)
+        self.assertIn("notas_permitidas", revelado)
+
+        _, auto = self.pedir("/api/responder", {
+            "item_id": item_id, "sentence_id": sid, "nota": 3,
+            "autoavaliacao": True})
+        self.assertEqual(auto["nota_aplicada"], 3)
+        self.assertEqual(auto["situacao"], "autoavaliacao")
+
         _, correcao = self.pedir("/api/corrigir", {
             "item_id": item_id, "sentence_id": sid, "resposta": "テスト"})
         self.assertFalse(correcao["acertou"])
@@ -239,7 +250,8 @@ class TestAPI(unittest.TestCase):
         _, agenda = self.pedir("/api/agenda")
         self.assertEqual(len(agenda["agenda"]), 1)
         _, hist = self.pedir("/api/historico")
-        self.assertEqual(len(hist["historico"]), 1)
+        # duas respostas foram registradas: a autoavaliação e a digitada
+        self.assertEqual(len(hist["historico"]), 2)
 
     def test_config_persiste(self):
         _, resp = self.pedir("/api/config", {"new_per_day": 7, "ignorado": 1})
@@ -331,3 +343,79 @@ class TestGravacaoDeFrases(unittest.TestCase):
             frase, origem = eng.sentence_for(item, conhecidos, "nova", [])
             self.assertIsNotNone(eng.db.get_sentence(frase["id"]))
         self.assertEqual(eng.db.count_sentences(), 1)
+
+
+class TestAutoavaliacao(unittest.TestCase):
+    """Fluxo padrão: a frase aparece, o aluno revela e diz se acertou."""
+
+    def _vencer(self, eng, item_id):
+        card = eng.db.get_card(item_id)
+        eng.db.save_card(item_id, card.__class__(
+            **{**card.__dict__, "due": utcnow() - timedelta(days=1)}))
+
+    def test_revelar_nao_agenda_nada(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        antes = eng.db.get_card(r.item.item_id)
+        rev = eng.revelar(r.item.item_id, r.sentence["id"])
+        depois = eng.db.get_card(r.item.item_id)
+        self.assertEqual(depois.reps, antes.reps)
+        self.assertEqual(depois.due, antes.due)
+        self.assertEqual(rev["referencia"]["ja"], r.sentence["ja"])
+        self.assertEqual(rev["palavra"]["grafia"], r.item.surface)
+
+    def test_apresentacao_nao_oferece_facil(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        rev = eng.revelar(r.item.item_id, r.sentence["id"])
+        self.assertTrue(rev["apresentacao"])
+        self.assertEqual(rev["notas_permitidas"], [AGAIN, 2, GOOD])
+
+    def test_revisao_oferece_as_quatro_notas(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        eng.submit(r.item.item_id, r.sentence["id"], rating=GOOD, autoavaliacao=True)
+        self._vencer(eng, r.item.item_id)
+        rev = eng.revelar(r.item.item_id, r.sentence["id"])
+        self.assertFalse(rev["apresentacao"])
+        self.assertEqual(rev["notas_permitidas"], [1, 2, 3, 4])
+
+    def test_a_nota_do_aluno_e_respeitada(self):
+        """Sem resposta digitada o app não tem como contradizer o aluno."""
+        eng = motor()
+        r = eng.next_round(force="nova")
+        eng.submit(r.item.item_id, r.sentence["id"], rating=GOOD, autoavaliacao=True)
+        self._vencer(eng, r.item.item_id)
+        fb = eng.submit(r.item.item_id, r.sentence["id"], rating=EASY, autoavaliacao=True)
+        self.assertEqual(fb["nota_aplicada"], EASY)
+        self.assertTrue(fb["acertou"])
+        self.assertEqual(fb["situacao"], "autoavaliacao")
+
+    def test_errei_na_autoavaliacao_vira_again(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        fb = eng.submit(r.item.item_id, r.sentence["id"], rating=AGAIN, autoavaliacao=True)
+        self.assertEqual(fb["nota_aplicada"], AGAIN)
+        self.assertFalse(fb["acertou"])
+        self.assertEqual(eng.db.recent_reviews(1)[0]["keyword_ok"], 0)
+
+    def test_apresentacao_continua_limitada_a_bom(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        fb = eng.submit(r.item.item_id, r.sentence["id"], rating=EASY, autoavaliacao=True)
+        self.assertEqual(fb["nota_aplicada"], GOOD)
+
+    def test_autoavaliacao_exige_nota(self):
+        eng = motor()
+        r = eng.next_round(force="nova")
+        with self.assertRaises(ValueError):
+            eng.submit(r.item.item_id, r.sentence["id"], autoavaliacao=True)
+
+    def test_modo_digitado_continua_funcionando(self):
+        """`check()` e a correção automática seguem disponíveis (--digitar)."""
+        eng = motor()
+        r = eng.next_round(force="nova")
+        c = eng.check(r.item.item_id, r.sentence["id"], r.sentence["ja"])
+        self.assertTrue(c["acertou"])
+        fb = eng.submit(r.item.item_id, r.sentence["id"], "frase errada", rating=EASY)
+        self.assertEqual(fb["nota_aplicada"], AGAIN)

@@ -369,6 +369,52 @@ class Engine:
 
     # -- resposta ---------------------------------------------------------
 
+    def revelar(self, item_id: str, sentence_id: int) -> dict:
+        """Mostra a resposta de referência para o aluno se autoavaliar.
+
+        Não julga nada e não agenda nada: quem diz se acertou é o aluno, na
+        nota que escolher em seguida. É o fluxo padrão do app -- digitar
+        japonês exigiria um IME instalado.
+        """
+        item = self.vocab.get(item_id)
+        if item is None:
+            raise ValueError(f"palavra desconhecida: {item_id}")
+        sentence = self.db.get_sentence(sentence_id)
+        if sentence is None:
+            raise ValueError(f"frase inexistente: {sentence_id}")
+
+        now = utcnow()
+        before = self.db.get_card(item_id)
+        introducao = before.state == "new"
+        # numa apresentação a grafia estava na tela: "fácil" não se sustenta
+        permitidas = [AGAIN, HARD, GOOD] if introducao else list(RATINGS)
+
+        fsrs = self.scheduler()
+        return {
+            "apresentacao": introducao,
+            "notas_permitidas": permitidas,
+            "nota_sugerida": GOOD if introducao else GOOD,
+            "palavra": {
+                "grafia": item.surface,
+                "leitura": item.reading,
+                "significado": item.pt,
+                "forma": item.form_label,
+                "lema": f"{item.lemma} ({item.lemma_reading})",
+                "nivel": item.level,
+            },
+            "referencia": {
+                "ja": sentence["ja"],
+                "leitura": sentence["ja_reading"],
+                "nota": sentence["note"],
+                "origem": sentence["source"],
+                "palavras": self.analyze(sentence["ja"], item),
+            },
+            "previsao": {
+                str(r): humanize_days(d) for r, d in fsrs.preview(before, now).items()
+            },
+        }
+
+
     def check(
         self,
         item_id: str,
@@ -442,11 +488,18 @@ class Engine:
         self,
         item_id: str,
         sentence_id: int,
-        answer: str,
+        answer: str = "",
         rating: int | None = None,
         hint_used: bool = False,
         revealed: bool = False,
+        autoavaliacao: bool = False,
     ) -> dict:
+        """Aplica a nota ao FSRS.
+
+        Com `autoavaliacao`, a nota vem do aluno e é respeitada: o app não
+        viu resposta nenhuma, então não tem como contradizê-lo. Com resposta
+        digitada, errar a palavra-chave força `AGAIN` -- aí o app sabe.
+        """
         item = self.vocab.get(item_id)
         if item is None:
             raise ValueError(f"palavra desconhecida: {item_id}")
@@ -461,11 +514,15 @@ class Engine:
 
         introducao = before.state == "new"
         chosen = rating if rating in RATINGS else grade.suggested_rating
-        if not grade.keyword_ok:
+        if autoavaliacao:
+            if rating not in RATINGS:
+                raise ValueError("a autoavaliação precisa de uma nota")
+            chosen = rating
+        elif not grade.keyword_ok:
             chosen = AGAIN   # errou a palavra-chave: o FSRS tem de saber disso
         elif grade.status == "quase" and chosen > HARD:
             chosen = HARD
-        elif introducao and chosen > GOOD:
+        if introducao and chosen > GOOD:
             # a grafia estava visivel na tela: nao da para creditar "fácil"
             chosen = GOOD
 
@@ -477,7 +534,7 @@ class Engine:
             item_id=item_id,
             sentence_id=sentence_id,
             answer=answer,
-            keyword_ok=1 if grade.keyword_ok else 0,
+            keyword_ok=1 if (chosen > AGAIN if autoavaliacao else grade.keyword_ok) else 0,
             rating=chosen,
             elapsed_days=before.elapsed_days(now),
             scheduled_days=after.scheduled_days,
@@ -488,10 +545,13 @@ class Engine:
         )
 
         return {
-            "acertou": grade.keyword_ok,
+            "acertou": (chosen > AGAIN) if autoavaliacao else grade.keyword_ok,
             "apresentacao": introducao,
-            "situacao": grade.status,
-            "mensagem": grade.message,
+            "situacao": "autoavaliacao" if autoavaliacao else grade.status,
+            "mensagem": (
+                f"Nota registrada: {RATING_LABELS[chosen]}."
+                if autoavaliacao else grade.message
+            ),
             "observacoes": grade.diff_notes,
             "semelhanca": round(grade.similarity, 2),
             "nota_aplicada": chosen,
@@ -581,16 +641,20 @@ class Engine:
             "entrada": int(self.setting("tokens_entrada") or 0),
             "saida": int(self.setting("tokens_saida") or 0),
         }
+        # `gerador` é curto (cabe no rodapé); o porquê vai em `motivo_local`
+        base["motivo_local"] = None
         if self.api_desativada:
-            base["gerador"] = "local (a API da Claude recusou a chave)"
+            base["gerador"] = "gerador local"
+            base["motivo_local"] = self.api_desativada
         elif self.client and self.client.available():
             from .config import origem_credencial
 
             base["gerador"] = f"Claude {self.client.model} · {origem_credencial()}"
         elif self.client:
-            base["gerador"] = f"local ({self.client.motivo_indisponivel()})"
+            base["gerador"] = "gerador local"
+            base["motivo_local"] = self.client.motivo_indisponivel()
         else:
-            base["gerador"] = "local (gerador de frases embutido)"
+            base["gerador"] = "gerador local"
         return base
 
     def agenda(self, limit: int = 100) -> list[dict]:

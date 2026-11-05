@@ -4,9 +4,9 @@ const NOTAS = { 1: "errei", 2: "difícil", 3: "bom", 4: "fácil" };
 const $ = (id) => document.getElementById(id);
 
 let rodada = null;        // rodada atual (resposta de /api/rodada)
-let correcao = null;      // resultado de /api/corrigir
+let revelado = null;      // resultado de /api/revelar (resposta à mostra)
+let avaliado = false;     // nota já registrada: o próximo passo é outra frase
 let usouDica = false;
-let revelou = false;
 let ocupado = false;
 
 async function api(rota, corpo) {
@@ -57,7 +57,14 @@ function pintarEstatisticas(s) {
   $("chips").innerHTML = chips
     .map(([r, v]) => `<span class="chip"><b>${escapar(v)}</b> ${escapar(r)}</span>`)
     .join("");
-  $("pe-gerador").textContent = `gerador de frases: ${s.gerador}`;
+  if (s.motivo_local) {
+    $("pe-gerador").textContent =
+      `${s.gerador} — clique em conectar-conta.bat para a Claude escrever as frases`;
+    $("pe-gerador").title = s.motivo_local;   // o detalhe completo no tooltip
+  } else {
+    $("pe-gerador").textContent = `frases escritas por: ${s.gerador}`;
+    $("pe-gerador").title = "";
+  }
   const t = s.tokens || { entrada: 0, saida: 0 };
   $("pe-tokens").textContent = t.entrada
     ? `tokens usados — entrada ${t.entrada.toLocaleString("pt-BR")} · saída ${t.saida.toLocaleString("pt-BR")}`
@@ -69,12 +76,11 @@ function pintarEstatisticas(s) {
 async function novaRodada(modo) {
   if (ocupado) return;
   ocupado = true;
-  usouDica = false; revelou = false; correcao = null;
+  usouDica = false; revelado = null; avaliado = false; rodada = null;
   $("feedback").classList.add("escondido");
   $("dica-caixa").classList.add("escondido");
   $("acoes").classList.remove("escondido");
-  $("resposta").value = "";
-  $("resposta").disabled = false;
+  $("instrucao").classList.remove("escondido");
   $("frase").textContent = "gerando a frase…";
   $("significado").textContent = "";
   $("ensino").classList.add("escondido");
@@ -103,7 +109,7 @@ async function novaRodada(modo) {
       $("avisos").classList.remove("escondido");
     }
     pintarEstatisticas(rodada.estatisticas);
-    $("resposta").focus();
+    $("btn-mostrar").focus();
     carregarPainel(abaAtiva());
   } catch (erro) {
     $("frase").textContent = "";
@@ -114,18 +120,15 @@ async function novaRodada(modo) {
   }
 }
 
-async function verificar() {
-  if (!rodada || ocupado || correcao) return;
+async function mostrarResposta() {
+  if (!rodada || ocupado || revelado || avaliado) return;
   ocupado = true;
   try {
-    correcao = await api("/api/corrigir", {
+    revelado = await api("/api/revelar", {
       item_id: rodada.palavra.item_id,
       sentence_id: rodada.frase.id,
-      resposta: $("resposta").value,
-      dica: usouDica,
-      revelou: revelou,
     });
-    pintarCorrecao(correcao);
+    pintarResposta(revelado);
   } catch (erro) {
     alert(erro.message);
   } finally {
@@ -133,44 +136,44 @@ async function verificar() {
   }
 }
 
-function pintarCorrecao(c) {
-  const classe = c.situacao === "acerto" ? "ok" : c.situacao === "quase" ? "quase" : "erro";
-  $("status").className = `status ${classe}`;
-  $("status").textContent = c.mensagem;
-  $("ref-ja").textContent = c.referencia.ja;
-  $("ref-kana").textContent = c.referencia.leitura;
-  $("ref-nota").textContent = c.referencia.nota || "";
-  $("ref-palavras").innerHTML = (c.referencia.palavras || [])
+function pintarResposta(r) {
+  $("ref-ja").textContent = r.referencia.ja;
+  $("ref-kana").textContent = r.referencia.leitura;
+  $("ref-chave").textContent = `${r.palavra.grafia} (${r.palavra.leitura}) — ${r.palavra.forma}`;
+  $("ref-nota").textContent = r.referencia.nota || "";
+  $("ref-palavras").innerHTML = (r.referencia.palavras || [])
     .map((p) => `<span class="pal ${p.alvo ? "alvo" : ""}">
         <span class="pal-ja">${escapar(p.grafia)}</span>
         <small>${escapar(p.leitura)} · ${escapar(p.significado)}</small></span>`)
     .join("");
 
-  $("notas-botoes").innerHTML = c.notas_permitidas
-    .map((n) => `<button data-nota="${n}" class="${n === c.nota_sugerida ? "sugerida" : ""}">
-        <b>${n}. ${NOTAS[n]}</b><span>volta em ${escapar(c.previsao[String(n)])}</span></button>`)
+  $("pergunta-nota").textContent = r.apresentacao
+    ? "Como foi? (a palavra estava na tela, então não vale “fácil”)"
+    : "Você acertou a palavra-chave?";
+  $("notas-botoes").innerHTML = r.notas_permitidas
+    .map((n) => `<button data-nota="${n}" class="${n === r.nota_sugerida ? "sugerida" : ""}">
+        <b>${n}. ${NOTAS[n]}</b><span>volta em ${escapar(r.previsao[String(n)])}</span></button>`)
     .join("");
   for (const b of $("notas-botoes").querySelectorAll("button")) {
     b.onclick = () => responder(Number(b.dataset.nota));
   }
   $("agendado").classList.add("escondido");
   $("acoes").classList.add("escondido");
-  $("resposta").disabled = true;
+  $("instrucao").classList.add("escondido");
   $("feedback").classList.remove("escondido");
   $("feedback").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 async function responder(nota) {
-  if (!rodada || !correcao || ocupado) return;
+  if (!rodada || !revelado || ocupado) return;
   ocupado = true;
   try {
     const r = await api("/api/responder", {
       item_id: rodada.palavra.item_id,
       sentence_id: rodada.frase.id,
-      resposta: $("resposta").value,
       nota: nota,
+      autoavaliacao: true,
       dica: usouDica,
-      revelou: revelou,
     });
     const a = r.agendamento;
     $("agendado").innerHTML =
@@ -181,7 +184,8 @@ async function responder(nota) {
     $("agendado").classList.remove("escondido");
     $("notas-botoes").innerHTML = "";
     pintarEstatisticas(r.estatisticas);
-    correcao = null;
+    revelado = null;
+    avaliado = true;
     $("btn-proxima").focus();
     carregarPainel(abaAtiva());
   } catch (erro) {
@@ -192,7 +196,7 @@ async function responder(nota) {
 }
 
 async function pedirDica() {
-  if (!rodada) return;
+  if (!rodada || revelado || avaliado) return;
   usouDica = true;
   const d = await api("/api/dica", { item_id: rodada.palavra.item_id });
   $("dica-caixa").innerHTML =
@@ -200,15 +204,8 @@ async function pedirDica() {
     (d.dica_forma ? ` (${escapar(d.dica_forma)})` : "") +
     `<br>leitura: começa com <b>${escapar(d.primeira_letra)}</b> e tem ` +
     `<b>${d.tamanho}</b> sílabas kana · lema lido <b>${escapar(d.lema_leitura)}</b>` +
-    `<br><span class="dim pequeno">usar a dica limita a nota a “difícil”.</span>`;
+    `<br><span class="dim pequeno">leve a dica em conta ao se avaliar.</span>`;
   $("dica-caixa").classList.remove("escondido");
-  $("resposta").focus();
-}
-
-function revelar() {
-  revelou = true;
-  $("resposta").value = "";
-  verificar();
 }
 
 /* ---------- painéis ---------- */
@@ -302,9 +299,8 @@ async function salvarAjustes() {
 
 /* ---------- eventos ---------- */
 
-$("btn-verificar").onclick = verificar;
+$("btn-mostrar").onclick = mostrarResposta;
 $("btn-dica").onclick = pedirDica;
-$("btn-revelar").onclick = revelar;
 $("btn-proxima").onclick = () => novaRodada();
 
 for (const b of document.querySelectorAll(".aba")) {
@@ -318,16 +314,18 @@ for (const b of document.querySelectorAll(".aba")) {
 }
 
 document.addEventListener("keydown", (ev) => {
-  const naCaixa = ev.target === $("resposta");
-  if (naCaixa && (ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-    ev.preventDefault(); verificar(); return;
+  if (ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+  if (avaliado) {
+    if (ev.key === " " || ev.key === "Enter") { ev.preventDefault(); novaRodada(); }
+    return;
   }
-  if (naCaixa) return;
-  if (correcao && ["1", "2", "3", "4"].includes(ev.key)) {
+  if (!revelado) {
+    if (ev.key === " " || ev.key === "Enter") { ev.preventDefault(); mostrarResposta(); }
+    return;
+  }
+  if (["1", "2", "3", "4"].includes(ev.key)) {
     const n = Number(ev.key);
-    if (correcao.notas_permitidas.includes(n)) { ev.preventDefault(); responder(n); }
-  } else if (ev.key === "Enter" && !correcao && !$("feedback").classList.contains("escondido")) {
-    ev.preventDefault(); novaRodada();
+    if (revelado.notas_permitidas.includes(n)) { ev.preventDefault(); responder(n); }
   }
 });
 

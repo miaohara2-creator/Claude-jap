@@ -49,20 +49,20 @@
 
     <div class="avisos escondido" id="avisos"></div>
 
-    <label class="rotulo" for="resposta">Sua tradução em japonês</label>
-    <textarea id="resposta" rows="3" spellcheck="false" autocapitalize="off"
-      placeholder="escreva em kanji/kana — ex.: 毎日、水を飲みます。"></textarea>
+    <p class="instrucao" id="instrucao">
+      Traduza a frase mentalmente, em voz alta ou no papel — depois confira.
+    </p>
 
     <div class="acoes" id="acoes">
-      <button class="primario" id="btn-verificar">Verificar <kbd>Ctrl</kbd>+<kbd>↵</kbd></button>
+      <button class="primario largo" id="btn-mostrar">
+        Mostrar a resposta <kbd>espaço</kbd>
+      </button>
       <button id="btn-dica">Dica</button>
-      <button id="btn-revelar">Não sei</button>
     </div>
 
     <div class="dica-caixa escondido" id="dica-caixa"></div>
 
     <div class="feedback escondido" id="feedback">
-      <div class="status" id="status"></div>
       <div class="referencia">
         <div class="ref-linha">
           <span class="ref-rotulo">referência</span>
@@ -72,11 +72,15 @@
           <span class="ref-rotulo">leitura</span>
           <span class="ref-kana" id="ref-kana"></span>
         </div>
+        <div class="ref-linha">
+          <span class="ref-rotulo">palavra-chave</span>
+          <span class="ref-chave" id="ref-chave"></span>
+        </div>
         <p class="nota" id="ref-nota"></p>
         <div class="palavras" id="ref-palavras"></div>
       </div>
       <div class="notas">
-        <span class="rotulo">Como foi lembrar a palavra-chave?</span>
+        <span class="rotulo" id="pergunta-nota">Você acertou a palavra-chave?</span>
         <div class="notas-botoes" id="notas-botoes"></div>
       </div>
       <div class="agendado escondido" id="agendado"></div>

@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cli", action="store_true", help="estudar pelo terminal")
     parser.add_argument("--sem-navegador", action="store_true",
                         help="não abrir o navegador automaticamente")
+    parser.add_argument("--digitar", action="store_true",
+                        help="modo terminal: digitar a tradução em vez de se autoavaliar")
     args = parser.parse_args(argv)
 
     configurar_saida_utf8()
@@ -51,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cli:
         from nihongo.cli import run_cli
 
-        return run_cli(db_path=args.banco, model=args.modelo)
+        return run_cli(db_path=args.banco, model=args.modelo, digitar=args.digitar)
 
     serve(db_path=args.banco, host=args.host, port=args.porta, model=args.modelo,
           abrir_navegador=not args.sem_navegador)

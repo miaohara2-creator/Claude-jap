@@ -171,7 +171,9 @@ class TestLacoDeGeracao(unittest.TestCase):
         self.assertIn(rodada.source, ("corpus", "local"))
         self.assertTrue(any("recusou a chave" in a for a in rodada.warnings))
         self.assertIsNotNone(eng.api_desativada)
-        self.assertEqual(eng.stats()["gerador"], "local (a API da Claude recusou a chave)")
+        stats = eng.stats()
+        self.assertEqual(stats["gerador"], "gerador local")
+        self.assertIn("recusou a chave", stats["motivo_local"])
         # não insiste nas rodadas seguintes
         segunda = eng.next_round()
         self.assertFalse(any("recusou a chave" in a for a in segunda.warnings))

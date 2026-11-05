@@ -12,7 +12,8 @@ Leia o `README.md` para a visão completa. Este arquivo é o resumo operacional.
 iniciar.bat                             # Windows: duplo clique (cria .venv, instala, abre o navegador)
 atualizar.bat                           # Windows: baixa a versão do GitHub por cima e reabre o app
 python3 app.py                          # interface web em http://127.0.0.1:8765
-python3 app.py --cli                    # modo terminal
+python3 app.py --cli                    # modo terminal (autoavaliação)
+python3 app.py --cli --digitar          # modo terminal digitando a tradução
 python3 app.py --porta 9000 --banco ~/japones.db
 python3 -m unittest discover -s tests   # 76 testes — rode antes de concluir qualquer mudança
 ```
@@ -61,9 +62,14 @@ local. **Não introduza outras dependências sem pedir.**
 4. **Palavras de 1–2 caracteres não têm tolerância de "quase"** (`私` e `水`
    seriam quase idênticos). Ver `grading.tolerance_for`.
 5. **Rodada de apresentação ensina, não cobra:** mostra grafia e leitura, e a
-   nota máxima é `GOOD` (a palavra estava na tela).
-6. **Errar a palavra-chave aplica `AGAIN`** mesmo que o aluno escolha outra
-   nota — o FSRS precisa do dado verdadeiro.
+   nota máxima é `GOOD` (a palavra estava na tela) — vale nos dois modos.
+6. **Autoavaliação é o fluxo padrão:** `revelar()` mostra a referência sem
+   agendar nada, e a nota do aluno é respeitada (`submit(autoavaliacao=True)`).
+   Digitar japonês exigiria IME. O modo digitado continua existindo
+   (`--digitar`, `check()`, `/api/corrigir`): **ali** errar a palavra-chave
+   aplica `AGAIN` mesmo que o aluno escolha outra nota, porque ali o app viu
+   a resposta. Nunca aplique essa regra à autoavaliação — não há o que
+   contradizer.
 7. **Só sai da fila de palavras novas quem tem `reps > 0`.** Uma rodada
    aberta e abandonada precisa voltar a ser oferecida.
 8. **`check()` não agenda nada**; só `submit()` grava no FSRS.

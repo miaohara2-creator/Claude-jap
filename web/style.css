@@ -82,6 +82,11 @@ main { max-width: 860px; margin: 1.5rem auto; padding: 0 1rem; }
 .ensino-palavra strong { font-size: 1.7rem; }
 .ensino-palavra span { color: var(--texto-dim); font-size: 1rem; }
 .avisos { margin: .75rem 0; font-size: .8rem; color: var(--quase); }
+.instrucao {
+  margin: 1.1rem 0 .2rem; font-size: .9rem; color: var(--texto-dim);
+  border-left: 3px solid var(--borda); padding-left: .7rem;
+}
+.ref-chave { font-size: 1.1rem; font-weight: 600; color: var(--destaque); }
 .rotulo { display: block; font-size: .78rem; color: var(--texto-dim); margin: 1rem 0 .35rem; }
 textarea, input, select {
   width: 100%; background: var(--bg); color: var(--texto); border: 1px solid var(--borda);
