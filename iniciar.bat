@@ -59,7 +59,31 @@ if errorlevel 1 (
     echo          Python atual em https://www.python.org/downloads/ resolve.
 )
 
-rem --- 2. ambiente proprio, criado uma unica vez ------------------------
+rem --- 2. credencial da Claude, perguntada uma unica vez ----------------
+rem Vem antes da parte lenta: o bloco do .venv consome a entrada padrao,
+rem alem de ser melhor decidir tudo de uma vez.
+rem Tres caminhos: conta Claude (perfil OAuth em %APPDATA%\Anthropic),
+rem chave de API em arquivo, ou nenhum (gerador local).
+rem saida para uso nao-interativo (automacao): nao pergunta nada
+if not "%NIHONGO_SEM_PERGUNTAS%"=="" goto preparar_ambiente
+if exist "%APPDATA%\Anthropic\credentials\*.json" goto preparar_ambiente
+if exist "chave-api.txt" goto preparar_ambiente
+if not "%ANTHROPIC_API_KEY%"=="" goto preparar_ambiente
+echo   Como a Claude vai escrever as frases?
+echo.
+echo     [1] Entrar com a minha conta Claude  ^(recomendado^)
+echo     [2] Colar uma chave de API
+echo     [3] Agora nao - usar o gerador local de frases
+echo.
+set "OPCAO="
+set /p "OPCAO=  escolha [1]: "
+if "!OPCAO!"=="" set "OPCAO=1"
+if "!OPCAO!"=="1" call :entrar_na_conta
+if "!OPCAO!"=="2" call :pedir_chave
+echo.
+
+:preparar_ambiente
+rem --- 3. ambiente proprio, criado uma unica vez ------------------------
 set "VENV_PY=%~dp0.venv\Scripts\python.exe"
 if not exist "!VENV_PY!" (
     echo   Preparando o ambiente pela primeira vez. Leva cerca de um minuto...
@@ -74,27 +98,6 @@ if not exist "!VENV_PY!" (
     )
     echo.
 )
-
-rem --- 3. credencial da Claude, perguntada uma unica vez ----------------
-rem Tres caminhos: conta Claude (perfil OAuth em %APPDATA%\Anthropic),
-rem chave de API em arquivo, ou nenhum (gerador local).
-rem saida para uso nao-interativo (automacao): nao pergunta nada
-if not "%NIHONGO_SEM_PERGUNTAS%"=="" goto rodar
-if exist "%APPDATA%\Anthropic\credentials\*.json" goto rodar
-if exist "chave-api.txt" goto rodar
-if not "%ANTHROPIC_API_KEY%"=="" goto rodar
-echo   Como a Claude vai escrever as frases?
-echo.
-echo     [1] Entrar com a minha conta Claude  ^(recomendado^)
-echo     [2] Colar uma chave de API
-echo     [3] Agora nao - usar o gerador local de frases
-echo.
-set "OPCAO="
-set /p "OPCAO=  escolha [1]: "
-if "!OPCAO!"=="" set "OPCAO=1"
-if "!OPCAO!"=="1" call :entrar_na_conta
-if "!OPCAO!"=="2" call :pedir_chave
-echo.
 
 :rodar
 "!VENV_PY!" app.py %*
@@ -162,9 +165,11 @@ set "BAIXAR="
 set /p "BAIXAR=  baixar agora? [S/n]: "
 if /i "!BAIXAR!"=="n" goto :eof
 echo   Baixando...
-powershell -NoProfile -Command "try { $r = Invoke-RestMethod 'https://api.github.com/repos/anthropics/anthropic-cli/releases/latest'; $v = $r.tag_name.TrimStart('v'); $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {'arm64'} else {'amd64'}; $nome = 'ant_' + $v + '_windows_' + $arq + '.zip'; $url = ($r.assets ^| Where-Object { $_.name -eq $nome }).browser_download_url; if (-not $url) { exit 2 }; $zip = Join-Path $env:TEMP 'ant-cli.zip'; Invoke-WebRequest -UseBasicParsing $url -OutFile $zip; Expand-Archive -LiteralPath $zip -DestinationPath '.ferramentas' -Force; Remove-Item $zip -ErrorAction SilentlyContinue } catch { exit 1 }"
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod 'https://api.github.com/repos/anthropics/anthropic-cli/releases/latest'; $v = $r.tag_name.TrimStart('v'); $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {'arm64'} else {'amd64'}; $nome = 'ant_' + $v + '_windows_' + $arq + '.zip'; $url = ($r.assets | Where-Object { $_.name -eq $nome }).browser_download_url; if (-not $url) { exit 2 }; $zip = Join-Path $env:TEMP 'ant-cli.zip'; Invoke-WebRequest -UseBasicParsing $url -OutFile $zip; Expand-Archive -LiteralPath $zip -DestinationPath '.ferramentas' -Force; Remove-Item $zip -ErrorAction SilentlyContinue } catch { Write-Error $_; exit 1 }" 2>"%TEMP%\japones-ant-erro.txt"
 if errorlevel 1 (
-    echo   Nao consegui baixar o utilitario. Voce pode:
+    echo   Nao consegui baixar o utilitario. Motivo:
+    type "%TEMP%\japones-ant-erro.txt"
+    echo   Voce pode:
     echo     - baixar a mao em https://github.com/anthropics/anthropic-cli/releases
     echo       ^(ant_^<versao^>_windows_amd64.zip^), extrair o ant.exe na pasta
     echo       .ferramentas daqui, e rodar este atalho de novo; ou
@@ -176,6 +181,7 @@ if not exist "%~dp0.ferramentas\ant.exe" (
     goto :eof
 )
 set "ANT=%~dp0.ferramentas\ant.exe"
+goto fazer_login
 
 :validar_ant
 if "%~1"=="" goto :eof
@@ -186,7 +192,6 @@ if not errorlevel 1 (
     echo   ^(ignorando o Apache Ant em %~1 - nao e o utilitario da Anthropic^)
     goto :eof
 )
-findstr /i /c:"auth" "%TEMP%\japones-ant.txt" >"%TEMP%\japones-ant.chk" 2>&1
 set "ANT=%~1"
 goto :eof
 
