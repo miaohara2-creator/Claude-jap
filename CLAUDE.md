@@ -17,7 +17,9 @@ python3 app.py --porta 9000 --banco ~/japones.db
 python3 -m unittest discover -s tests   # 76 testes — rode antes de concluir qualquer mudança
 ```
 
-Só a biblioteca padrão do Python (3.11+) é obrigatória. `anthropic` é opcional
+Só a biblioteca padrão do Python (3.9+) é obrigatória. O piso é 3.9 porque
+o código não usa nada mais novo; a automação do Windows testa 3.9, 3.10 e
+3.12 e falha se alguma mudança quebrar isso. `anthropic` é opcional
 e habilita a geração de frases; sem `ANTHROPIC_API_KEY` o app cai no gerador
 local. **Não introduza outras dependências sem pedir.**
 

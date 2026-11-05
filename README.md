@@ -62,7 +62,7 @@ sozinho (cerca de um minuto): cria um ambiente Python próprio na pasta
 `.venv`, instala a biblioteca da Claude e pergunta a sua chave da API. Depois
 disso, cada clique sobe o aplicativo em poucos segundos e abre o navegador.
 
-O único pré-requisito é o **Python 3.11 ou mais novo**. Se não tiver, o
+O único pré-requisito é o **Python 3.9 ou mais novo**. Se não tiver, o
 atalho avisa e manda o link: baixe em <https://www.python.org/downloads/> e
 marque **"Add python.exe to PATH"** na tela de instalação.
 

@@ -16,10 +16,16 @@ from __future__ import annotations
 import argparse
 import sys
 
-if sys.version_info < (3, 11):  # pragma: no cover
+#: Versão mínima suportada. Não há recurso de 3.10+ no código: todas as
+#: anotações são adiadas por `from __future__ import annotations`. A
+#: automação do Windows testa 3.9, 3.10 e 3.12 para manter isso verdadeiro.
+VERSAO_MINIMA = (3, 9)
+
+if sys.version_info < VERSAO_MINIMA:  # pragma: no cover
     sys.exit(
-        f"Este aplicativo precisa do Python 3.11 ou mais novo "
-        f"(encontrei o {sys.version.split()[0]}). Baixe em https://python.org/downloads"
+        f"Este aplicativo precisa do Python {VERSAO_MINIMA[0]}.{VERSAO_MINIMA[1]} "
+        f"ou mais novo (encontrei o {sys.version.split()[0]}). "
+        "Baixe em https://python.org/downloads"
     )
 
 from nihongo.config import carregar_chave_local

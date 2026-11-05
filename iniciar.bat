@@ -3,9 +3,10 @@ rem ===================================================================
 rem  Japones incremental - atalho de inicio para Windows
 rem  Duplo clique. Na primeira vez prepara o ambiente (~1 min).
 rem
-rem  Este script evita de proposito "where" e redirecionamento para NUL:
-rem  em alguns ambientes o ">nul" falha com "O sistema nao pode encontrar
-rem  o caminho especificado" e o comando nem chega a rodar.
+rem  Evita de proposito "where" e redirecionamento para NUL: em alguns
+rem  ambientes o ">nul" falha com "O sistema nao pode encontrar o caminho
+rem  especificado" e o comando nem chega a rodar. A saida indesejada vai
+rem  para um arquivo no TEMP.
 rem ===================================================================
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -13,39 +14,44 @@ chcp 65001
 cls
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
+set "ERRFILE=%TEMP%\japones-python.err"
+set "LISTA=%TEMP%\japones-pythons.txt"
+if exist "%LISTA%" del /q "%LISTA%"
 
 echo.
 echo   Japones incremental - uma palavra nova por frase
 echo   -----------------------------------------------
 echo.
 
-rem --- 1. procura o Python --------------------------------------------
+rem --- 1. procura um Python 3.9 ou mais novo ---------------------------
 set "PY_EXE="
 set "PY_ARGS="
 
-rem 1a. o lancador oficial py.exe, instalado junto com o Python
-if exist "%SystemRoot%\py.exe" (
-    set "PY_EXE=%SystemRoot%\py.exe"
-    set "PY_ARGS=-3"
-)
+rem 1a. lancador py.exe, da versao mais nova para a mais antiga
+if exist "%SystemRoot%\py.exe" for %%V in (3.15 3.14 3.13 3.12 3.11 3.10 3.9) do call :testar_py %%V
 
-rem 1b. procura no PATH sem comando externo ^(%%~$PATH: faz a busca^)
-if not defined PY_EXE for %%I in (python.exe) do if not defined PY_EXE set "PY_EXE=%%~$PATH:I"
-if not defined PY_EXE for %%I in (python3.exe) do if not defined PY_EXE set "PY_EXE=%%~$PATH:I"
+rem 1b. PATH (a busca %%~$PATH: e interna do cmd, sem comando externo)
+for %%I in (python.exe) do call :testar "%%~$PATH:I"
+for %%I in (python3.exe) do call :testar "%%~$PATH:I"
 
 rem 1c. pastas de instalacao mais comuns
-if not defined PY_EXE for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set "PY_EXE=%%D\python.exe"
-if not defined PY_EXE for /d %%D in ("%ProgramFiles%\Python3*") do if exist "%%D\python.exe" set "PY_EXE=%%D\python.exe"
-if not defined PY_EXE for /d %%D in ("%ProgramFiles(x86)%\Python3*") do if exist "%%D\python.exe" set "PY_EXE=%%D\python.exe"
+for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do call :testar "%%D\python.exe"
+for /d %%D in ("%ProgramFiles%\Python3*") do call :testar "%%D\python.exe"
+for /d %%D in ("%ProgramFiles(x86)%\Python3*") do call :testar "%%D\python.exe"
+for /d %%D in ("C:\Python3*") do call :testar "%%D\python.exe"
+
+rem 1d. Anaconda / Miniconda
+call :testar "%USERPROFILE%\anaconda3\python.exe"
+call :testar "%USERPROFILE%\miniconda3\python.exe"
+call :testar "%ProgramData%\anaconda3\python.exe"
+call :testar "%ProgramData%\miniconda3\python.exe"
+
+rem 1e. registro do Windows (instalacoes registradas)
+call :do_registro HKCU
+call :do_registro HKLM
 
 if not defined PY_EXE goto sem_python
-
-rem o atalho da Microsoft Store nao e o Python de verdade
-set "SEM_LOJA=!PY_EXE:WindowsApps=!"
-if not "!SEM_LOJA!"=="!PY_EXE!" set "DA_LOJA=1"
-
-"!PY_EXE!" !PY_ARGS! -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
-if errorlevel 1 goto python_ruim
+echo   Python: !PY_EXE! !PY_ARGS!
 
 rem --- 2. ambiente proprio, criado uma unica vez ------------------------
 set "VENV_PY=%~dp0.venv\Scripts\python.exe"
@@ -87,35 +93,64 @@ if errorlevel 1 (
 )
 goto fim
 
+rem --- subrotinas -------------------------------------------------------
+
+:testar_py
+if defined PY_EXE goto :eof
+"%SystemRoot%\py.exe" -%1 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" 2>"%ERRFILE%"
+if errorlevel 1 goto :eof
+set "PY_EXE=%SystemRoot%\py.exe"
+set "PY_ARGS=-%1"
+goto :eof
+
+:testar
+if defined PY_EXE goto :eof
+if "%~1"=="" goto :eof
+if not exist "%~1" goto :eof
+>>"%LISTA%" echo %~1
+"%~1" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" 2>"%ERRFILE%"
+if errorlevel 1 goto :eof
+set "PY_EXE=%~1"
+set "PY_ARGS="
+goto :eof
+
+:do_registro
+for /f "tokens=*" %%K in ('reg query "%1\Software\Python\PythonCore" 2^>"%ERRFILE%"') do call :do_registro_versao "%%K"
+goto :eof
+
+:do_registro_versao
+for /f "tokens=2,*" %%A in ('reg query "%~1\InstallPath" /ve 2^>"%ERRFILE%"') do call :testar "%%B\python.exe"
+goto :eof
+
+:mostrar_versao
+echo     - %~1
+"%~1" --version
+goto :eof
+
+rem --- mensagens de erro -------------------------------------------------
+
 :sem_python
-echo   Nao encontrei o Python neste computador.
+echo   Nao encontrei um Python 3.9 ou mais novo neste computador.
 echo.
-echo   Procurei em:
-echo     %SystemRoot%\py.exe
-echo     no PATH ^(python.exe e python3.exe^)
+if exist "%LISTA%" (
+    echo   Pythons que eu encontrei, e a versao de cada um:
+    for /f "usebackq delims=" %%P in ("%LISTA%") do call :mostrar_versao "%%P"
+    echo.
+)
+if exist "%SystemRoot%\py.exe" (
+    echo   Versoes que o lancador py.exe conhece:
+    "%SystemRoot%\py.exe" -0
+    echo.
+)
+echo   Procurei tambem em:
 echo     %LOCALAPPDATA%\Programs\Python\Python3*
 echo     %ProgramFiles%\Python3*
+echo     C:\Python3*  ^|  anaconda3  ^|  miniconda3
+echo     registro do Windows ^(HKCU e HKLM, Software\Python\PythonCore^)
 echo.
-echo   Baixe em https://www.python.org/downloads/ e, na tela de instalacao,
-echo   marque "Add python.exe to PATH" antes de clicar em Install.
-echo   Depois feche esta janela e de outro duplo clique aqui.
-echo.
-echo   Se voce TEM Python instalado, rode o diagnostico.bat desta pasta e
-echo   mande o resultado - ele mostra o que o script esta enxergando.
-echo.
-pause
-goto fim
-
-:python_ruim
-if defined DA_LOJA (
-    echo   O que encontrei foi o atalho da Microsoft Store, nao o Python.
-    echo   Instale o Python de verdade em https://www.python.org/downloads/
-    echo   e marque "Add python.exe to PATH" na instalacao.
-) else (
-    echo   O Python encontrado e antigo demais ^(precisa ser 3.11 ou mais novo^):
-    echo     !PY_EXE!
-    echo   Baixe a versao atual em https://www.python.org/downloads/
-)
+echo   Baixe o Python em https://www.python.org/downloads/ e, na tela de
+echo   instalacao, marque "Add python.exe to PATH" antes de clicar em
+echo   Install. Depois feche esta janela e de outro duplo clique aqui.
 echo.
 pause
 goto fim
