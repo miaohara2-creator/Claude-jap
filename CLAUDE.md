@@ -18,8 +18,8 @@ python3 -m unittest discover -s tests   # 76 testes — rode antes de concluir q
 ```
 
 Só a biblioteca padrão do Python (3.9+) é obrigatória. O piso é 3.9 porque
-o código não usa nada mais novo; a automação do Windows testa 3.9, 3.10 e
-3.12 e falha se alguma mudança quebrar isso. O pacote opcional `anthropic`
+o código não usa nada mais novo; a automação do Windows testa 3.9, 3.12 e
+3.15 e falha se alguma mudança quebrar isso. O pacote opcional `anthropic`
 exige 3.10+, então em 3.9 o app roda com o gerador local — `ClaudeClient.
 motivo_indisponivel()` explica isso ao usuário em vez de só sumir com a API.
 

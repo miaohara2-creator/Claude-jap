@@ -28,7 +28,7 @@ set "PY_EXE="
 set "PY_ARGS="
 
 rem 1a. lancador py.exe, da versao mais nova para a mais antiga
-if exist "%SystemRoot%\py.exe" for %%V in (3.15 3.14 3.13 3.12 3.11 3.10 3.9) do call :testar_py %%V
+if exist "%SystemRoot%\py.exe" for %%V in (3.18 3.17 3.16 3.15 3.14 3.13 3.12 3.11 3.10 3.9) do call :testar_py %%V
 
 rem 1b. PATH (a busca %%~$PATH: e interna do cmd, sem comando externo)
 for %%I in (python.exe) do call :testar "%%~$PATH:I"
