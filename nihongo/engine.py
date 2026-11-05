@@ -581,7 +581,9 @@ class Engine:
         if self.api_desativada:
             base["gerador"] = "local (a API da Claude recusou a chave)"
         elif self.client and self.client.available():
-            base["gerador"] = f"Claude ({self.client.model})"
+            from .config import origem_credencial
+
+            base["gerador"] = f"Claude {self.client.model} · {origem_credencial()}"
         elif self.client:
             base["gerador"] = f"local ({self.client.motivo_indisponivel()})"
         else:

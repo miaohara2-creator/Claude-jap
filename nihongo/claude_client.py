@@ -94,13 +94,10 @@ class ClaudeClient:
 
     @staticmethod
     def credentials_present() -> bool:
-        if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-            return True
-        # perfil gravado por `ant auth login`
-        for base in (os.environ.get("XDG_CONFIG_HOME"), os.path.expanduser("~/.config")):
-            if base and os.path.isdir(os.path.join(base, "anthropic")):
-                return True
-        return False
+        """Há credencial: variável de ambiente, chave em arquivo ou conta conectada."""
+        from .config import origem_credencial
+
+        return origem_credencial() is not None
 
     def available(self) -> bool:
         return self.motivo_indisponivel() is None
@@ -123,7 +120,12 @@ class ClaudeClient:
                 )
             return "o pacote `anthropic` não está instalado"
         if not self.credentials_present():
-            return "não há chave da API (ANTHROPIC_API_KEY ou chave-api.txt)"
+            from .config import COMANDO_LOGIN
+
+            return (
+                f"nenhuma conta conectada — rode `{COMANDO_LOGIN}` para entrar "
+                "com a sua conta Claude (ou crie um chave-api.txt)"
+            )
         return None
 
     def _ensure_client(self):
@@ -135,9 +137,11 @@ class ClaudeClient:
                     "O pacote `anthropic` não está instalado (pip install anthropic)."
                 ) from exc
             if not self.credentials_present():
+                from .config import COMANDO_LOGIN
+
                 raise ClaudeUnavailable(
-                    "Nenhuma credencial encontrada: defina ANTHROPIC_API_KEY "
-                    "ou rode `ant auth login`."
+                    f"Nenhuma credencial encontrada: rode `{COMANDO_LOGIN}` para "
+                    "entrar com a sua conta Claude, ou crie um chave-api.txt."
                 )
             self._client = anthropic.Anthropic()
         return self._client

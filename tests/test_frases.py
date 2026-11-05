@@ -234,3 +234,81 @@ class TestChaveLocal(unittest.TestCase):
     def test_sem_arquivo_nem_ambiente(self):
         from nihongo.config import carregar_chave_local
         self.assertIsNone(carregar_chave_local(self.dir))
+
+
+class TestContaClaude(unittest.TestCase):
+    """Credencial pela conta conectada (perfil OAuth), sem chave de API."""
+
+    def setUp(self):
+        import os
+        from pathlib import Path
+        self.dir = Path(tempfile.mkdtemp())
+        self.antigos = {k: os.environ.pop(k, None)
+                        for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
+                                  "ANTHROPIC_CONFIG_DIR")}
+        self.addCleanup(self._restaurar)
+
+    def _restaurar(self):
+        import os
+        for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_CONFIG_DIR"):
+            os.environ.pop(k, None)
+            if self.antigos.get(k):
+                os.environ[k] = self.antigos[k]
+
+    def _criar_perfil(self):
+        (self.dir / "credentials").mkdir(parents=True, exist_ok=True)
+        (self.dir / "credentials" / "default.json").write_text('{"access_token": "x"}')
+
+    def test_pasta_do_perfil_por_plataforma(self):
+        from nihongo.config import diretorio_config_anthropic
+        self.assertEqual(
+            diretorio_config_anthropic("win32", {"APPDATA": r"C:\Users\a\AppData\Roaming"}),
+            Path(r"C:\Users\a\AppData\Roaming") / "Anthropic",
+        )
+        self.assertEqual(
+            diretorio_config_anthropic("linux", {"XDG_CONFIG_HOME": "/cfg"}),
+            Path("/cfg/anthropic"),
+        )
+        self.assertEqual(
+            diretorio_config_anthropic("win32", {"ANTHROPIC_CONFIG_DIR": "/x"}),
+            Path("/x"),
+        )
+
+    def test_detecta_a_conta_conectada(self):
+        from nihongo.config import conta_claude_conectada
+        self.assertFalse(conta_claude_conectada(self.dir))
+        self._criar_perfil()
+        self.assertTrue(conta_claude_conectada(self.dir))
+
+    def test_conta_vale_como_credencial(self):
+        import os
+        from nihongo.claude_client import ClaudeClient
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir)
+        self.assertFalse(ClaudeClient.credentials_present())
+        self._criar_perfil()
+        self.assertTrue(ClaudeClient.credentials_present())
+
+    def test_conta_nao_define_variavel_de_ambiente(self):
+        """A variável venceria o perfil: a conta tem de ficar com o SDK."""
+        import os
+        from nihongo.config import carregar_chave_local
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir)
+        self._criar_perfil()
+        self.assertEqual(carregar_chave_local(self.dir), "conta")
+        self.assertIsNone(os.environ.get("ANTHROPIC_API_KEY"))
+
+    def test_mensagem_ensina_o_login(self):
+        import os
+        from nihongo.claude_client import ClaudeClient
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir)
+        motivo = ClaudeClient().motivo_indisponivel()
+        self.assertIsNotNone(motivo)
+        self.assertIn("ant auth login", motivo)
+
+    def test_chave_em_arquivo_tem_precedencia_e_e_anunciada(self):
+        import os
+        from nihongo.config import origem_credencial
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir)
+        self._criar_perfil()
+        (self.dir / "chave-api.txt").write_text("sk-ant-arquivo")
+        self.assertEqual(origem_credencial(self.dir), "chave de API (chave-api.txt)")

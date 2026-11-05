@@ -215,8 +215,11 @@ def serve(
     print(f"  nível atual: {stats['nivel_atual']} | aprendidas: "
           f"{stats['palavras_aprendidas']} | a revisar: {stats['revisoes_pendentes']}")
     if "local" in stats["gerador"]:
-        print("\n  Atenção: sem ANTHROPIC_API_KEY as frases vêm do corpus local")
-        print("  (limitado). Defina a variável para a Claude gerar as frases.")
+        from .config import COMANDO_LOGIN
+
+        print(f"\n  Atenção: as frases virão do gerador local, que é limitado.")
+        print(f"  Para a Claude escrevê-las, rode `{COMANDO_LOGIN}` e entre com")
+        print("  a sua conta Claude (ou crie um chave-api.txt nesta pasta).")
     print("\n  Ctrl+C para encerrar (ou feche esta janela).\n")
     if abrir_navegador:
         _abrir_no_navegador(f"http://{host}:{port}")

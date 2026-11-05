@@ -66,6 +66,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      # O login com a conta Claude usa o utilitario `ant`. Este passo mostra
+      # como instala-lo no Windows; se a Anthropic parar de publicar binario
+      # para Windows, aparece aqui antes de quebrar para o usuario.
+      - name: Como obter o utilitario `ant` no Windows
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          try {
+            $r = Invoke-RestMethod https://api.github.com/repos/anthropics/anthropic-cli/releases/latest
+            Write-Host "versao mais recente: $($r.tag_name)"
+            Write-Host "--- assets para Windows ---"
+            $r.assets.name | Where-Object { $_ -match 'windows|\.exe|\.msi' } | ForEach-Object { Write-Host "  $_" }
+            Write-Host "--- todos os assets ---"
+            $r.assets.name | ForEach-Object { Write-Host "  $_" }
+          } catch { Write-Host "falha ao consultar os releases: $_" }
+          Write-Host "--- winget ---"
+          winget show Anthropic.Ant --disable-interactivity 2>&1 | Select-Object -First 15
+
       - name: Diagnostico do ambiente
         shell: cmd
         run: diagnostico.bat < nul
