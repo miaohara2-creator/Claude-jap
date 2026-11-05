@@ -10,8 +10,9 @@ rem  para um arquivo no TEMP.
 rem ===================================================================
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
-chcp 65001
-cls
+rem Atencao: `chcp 65001` quebra o `set /p` quando a entrada vem de arquivo.
+rem Por isso a troca de pagina de codigo fica la embaixo, em :rodar, pouco
+rem antes do Python -- que e a unica parte que imprime japones.
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set "ERRFILE=%TEMP%\japones-python.err"
@@ -102,6 +103,7 @@ if not exist "!VENV_PY!" (
 )
 
 :rodar
+chcp 65001
 "!VENV_PY!" app.py %*
 if errorlevel 1 (
     echo.

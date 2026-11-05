@@ -165,7 +165,7 @@ jobs:
           echo VARIANTE %~1 LEU=[!X!]
           "@ | Out-File -FilePath "$dir\diag.bat" -Encoding ascii
           "3" | Out-File -FilePath "$dir\entrada.txt" -Encoding ascii
-          foreach ($v in 'A','B','C','D','E') {
+          foreach ($v in 'A','B','C','D','E','F') {
             cmd /c "cd /d $dir && diag.bat $v < entrada.txt"
           }
 
