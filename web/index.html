@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日本語 — aprendizado incremental</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>語</text></svg>">
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <span class="logo">語</span>
+    <div>
+      <h1>Japonês incremental</h1>
+      <p class="sub">uma palavra nova por frase · agendamento FSRS</p>
+    </div>
+  </div>
+  <div class="painel-nivel">
+    <div class="nivel-linha">
+      <span class="badge nivel" id="badge-nivel">N5</span>
+      <span class="dim" id="texto-progresso">—</span>
+    </div>
+    <div class="barra"><div class="barra-fill" id="barra-nivel"></div></div>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <section class="cartao" id="cartao">
+    <div class="cartao-cabeca">
+      <span class="badge" id="badge-modo">—</span>
+      <span class="badge suave" id="badge-forma">—</span>
+      <span class="badge suave" id="badge-origem"></span>
+      <span class="dim pequeno" id="pendentes"></span>
+    </div>
+
+    <p class="frase" id="frase">Carregando…</p>
+    <p class="dim pequeno" id="significado"></p>
+
+    <div class="ensino escondido" id="ensino">
+      <span class="ensino-rotulo">palavra nova desta rodada</span>
+      <div class="ensino-palavra">
+        <strong id="ensino-grafia"></strong>
+        <span id="ensino-leitura"></span>
+      </div>
+      <div class="dim pequeno" id="ensino-detalhe"></div>
+    </div>
+
+    <div class="avisos escondido" id="avisos"></div>
+
+    <label class="rotulo" for="resposta">Sua tradução em japonês</label>
+    <textarea id="resposta" rows="3" spellcheck="false" autocapitalize="off"
+      placeholder="escreva em kanji/kana — ex.: 毎日、水を飲みます。"></textarea>
+
+    <div class="acoes" id="acoes">
+      <button class="primario" id="btn-verificar">Verificar <kbd>Ctrl</kbd>+<kbd>↵</kbd></button>
+      <button id="btn-dica">Dica</button>
+      <button id="btn-revelar">Não sei</button>
+    </div>
+
+    <div class="dica-caixa escondido" id="dica-caixa"></div>
+
+    <div class="feedback escondido" id="feedback">
+      <div class="status" id="status"></div>
+      <div class="referencia">
+        <div class="ref-linha">
+          <span class="ref-rotulo">referência</span>
+          <span class="ref-ja" id="ref-ja"></span>
+        </div>
+        <div class="ref-linha">
+          <span class="ref-rotulo">leitura</span>
+          <span class="ref-kana" id="ref-kana"></span>
+        </div>
+        <p class="nota" id="ref-nota"></p>
+        <div class="palavras" id="ref-palavras"></div>
+      </div>
+      <div class="notas">
+        <span class="rotulo">Como foi lembrar a palavra-chave?</span>
+        <div class="notas-botoes" id="notas-botoes"></div>
+      </div>
+      <div class="agendado escondido" id="agendado"></div>
+      <button class="primario largo" id="btn-proxima">Próxima frase <kbd>↵</kbd></button>
+    </div>
+  </section>
+
+  <nav class="abas">
+    <button class="aba ativa" data-aba="agenda">Agenda</button>
+    <button class="aba" data-aba="historico">Histórico</button>
+    <button class="aba" data-aba="frases">Frases salvas</button>
+    <button class="aba" data-aba="ajustes">Ajustes</button>
+  </nav>
+  <section class="paineis">
+    <div class="painel ativo" id="painel-agenda"><p class="dim">carregando…</p></div>
+    <div class="painel" id="painel-historico"></div>
+    <div class="painel" id="painel-frases"></div>
+    <div class="painel" id="painel-ajustes"></div>
+  </section>
+</main>
+
+<footer class="pe">
+  <span id="pe-gerador"></span>
+  <span class="dim" id="pe-tokens"></span>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
