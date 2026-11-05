@@ -12,6 +12,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from nihongo.claude_client import ClaudeClient, ClaudeRefusal
 
+try:  # o pacote `anthropic` e opcional: sem ele estes testes sao pulados
+    import anthropic
+    TEM_ANTHROPIC = True
+except ImportError:  # pragma: no cover
+    anthropic = None
+    TEM_ANTHROPIC = False
+
 RECEBIDO: list[dict] = []
 RESPOSTA = {"modo": "normal"}
 
@@ -49,6 +56,7 @@ class FakeAPI(BaseHTTPRequestHandler):
         self.wfile.write(corpo_resp)
 
 
+@unittest.skipUnless(TEM_ANTHROPIC, "o pacote `anthropic` não está instalado")
 class TestClienteClaude(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -64,7 +72,6 @@ class TestClienteClaude(unittest.TestCase):
     def setUp(self):
         RECEBIDO.clear()
         RESPOSTA["modo"] = "normal"
-        import anthropic
         self.cliente = ClaudeClient()
         self.cliente._client = anthropic.Anthropic(
             api_key="chave-de-teste",
