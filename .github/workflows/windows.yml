@@ -98,7 +98,11 @@ jobs:
           Push-Location $dir
           "sk-ant-chave-do-usuario" | Out-File -FilePath chave-api.txt -Encoding ascii
           New-Item -ItemType Directory -Force -Path data | Out-Null
-          python -c "import sys,random; sys.path.insert(0,'.');from nihongo.db import Database;from nihongo.engine import Engine;e=Engine(Database('data/progresso.db'),client=None,rng=random.Random(1));[e.submit(r.item.item_id, r.sentence['id'], r.sentence['ja']) for r in [e.next_round() for _ in range(3)]]"
+          # responde cada rodada antes de pedir a proxima: uma rodada sem
+          # resposta devolve a MESMA palavra de novo, por construcao do app
+          python -c "import sys,random;sys.path.insert(0,'.');from nihongo.db import Database;from nihongo.engine import Engine;e=Engine(Database('data/progresso.db'),client=None,rng=random.Random(1));[e.submit(r.item.item_id,r.sentence['id'],r.sentence['ja']) for r in (e.next_round() for _ in range(3))]"
+          $antes = python -c "import sys;sys.path.insert(0,'.');from nihongo.db import Database;print(Database('data/progresso.db').stats()['palavras_aprendidas'])"
+          if ($antes.Trim() -ne "3") { throw "o preparo do teste nao criou 3 palavras: $antes" }
           # marca um arquivo para provar que o pacote novo chegou por cima
           "versao antiga" | Out-File -FilePath app.py -Encoding ascii -Append
           "" | Out-File -FilePath vazio.txt -Encoding ascii
@@ -121,12 +125,12 @@ jobs:
           Write-Host "----------------------------------`n"
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $ok) { throw "depois de atualizar, o aplicativo nao subiu" }
           if (-not (Test-Path chave-api.txt)) { throw "a chave do usuario foi apagada" }
           if ((Get-Content chave-api.txt -Raw).Trim() -ne "sk-ant-chave-do-usuario") { throw "a chave foi alterada" }
           if (-not (Test-Path data\progresso.db)) { throw "o progresso foi apagado" }
           $n = python -c "import sys;sys.path.insert(0,'.');from nihongo.db import Database;print(Database('data/progresso.db').stats()['palavras_aprendidas'])"
-          if ($n.Trim() -ne "3") { throw "o progresso mudou: $n" }
+          if ($n.Trim() -ne $antes.Trim()) { throw "o progresso mudou: era $antes, ficou $n" }
           if (Select-String -Path app.py -Pattern "versao antiga" -Quiet) { throw "o app.py nao foi substituido" }
           Pop-Location
-          if (-not $ok) { throw "depois de atualizar, o aplicativo nao subiu" }
           Write-Host "OK: atualizou, preservou progresso e chave, e abriu o app."
