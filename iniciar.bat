@@ -16,7 +16,9 @@ set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set "ERRFILE=%TEMP%\japones-python.err"
 set "LISTA=%TEMP%\japones-pythons.txt"
+set "VAZIO=%TEMP%\japones-vazio.txt"
 if exist "%LISTA%" del /q "%LISTA%"
+>"%VAZIO%" echo.
 
 echo.
 echo   Japones incremental - uma palavra nova por frase
@@ -52,7 +54,7 @@ call :do_registro HKLM
 
 if not defined PY_EXE goto sem_python
 echo   Python: !PY_EXE! !PY_ARGS!
-"!PY_EXE!" !PY_ARGS! -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" 2>"%ERRFILE%"
+"!PY_EXE!" !PY_ARGS! -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" <"%VAZIO%" 2>"%ERRFILE%"
 if errorlevel 1 (
     echo   [nota] O app roda neste Python, mas o pacote da Claude exige 3.10
     echo          ou mais novo: as frases virao do gerador local. Instalar um
@@ -112,7 +114,7 @@ rem --- subrotinas -------------------------------------------------------
 
 :testar_py
 if defined PY_EXE goto :eof
-"%SystemRoot%\py.exe" -%1 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" 2>"%ERRFILE%"
+"%SystemRoot%\py.exe" -%1 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" <"%VAZIO%" 2>"%ERRFILE%"
 if errorlevel 1 goto :eof
 set "PY_EXE=%SystemRoot%\py.exe"
 set "PY_ARGS=-%1"
@@ -123,18 +125,18 @@ if defined PY_EXE goto :eof
 if "%~1"=="" goto :eof
 if not exist "%~1" goto :eof
 >>"%LISTA%" echo %~1
-"%~1" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" 2>"%ERRFILE%"
+"%~1" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" <"%VAZIO%" 2>"%ERRFILE%"
 if errorlevel 1 goto :eof
 set "PY_EXE=%~1"
 set "PY_ARGS="
 goto :eof
 
 :do_registro
-for /f "tokens=*" %%K in ('reg query "%1\Software\Python\PythonCore" 2^>"%ERRFILE%"') do call :do_registro_versao "%%K"
+for /f "tokens=*" %%K in ('reg query "%1\Software\Python\PythonCore" 2^>"%ERRFILE%" ^<"%VAZIO%"') do call :do_registro_versao "%%K"
 goto :eof
 
 :do_registro_versao
-for /f "tokens=2,*" %%A in ('reg query "%~1\InstallPath" /ve 2^>"%ERRFILE%"') do call :testar "%%B\python.exe"
+for /f "tokens=2,*" %%A in ('reg query "%~1\InstallPath" /ve 2^>"%ERRFILE%" ^<"%VAZIO%"') do call :testar "%%B\python.exe"
 goto :eof
 
 :pedir_chave
@@ -186,7 +188,7 @@ goto fazer_login
 :validar_ant
 if "%~1"=="" goto :eof
 if not exist "%~1" goto :eof
-"%~1" auth status >"%TEMP%\japones-ant.txt" 2>&1
+"%~1" auth status <"%VAZIO%" >"%TEMP%\japones-ant.txt" 2>&1
 findstr /i /c:"Buildfile" "%TEMP%\japones-ant.txt" >"%TEMP%\japones-ant.chk" 2>&1
 if not errorlevel 1 (
     echo   ^(ignorando o Apache Ant em %~1 - nao e o utilitario da Anthropic^)
