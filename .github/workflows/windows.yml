@@ -197,7 +197,10 @@ jobs:
           Write-Host "----- saida -----"; if (Test-Path m.txt) { Get-Content m.txt }
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
-          if (Test-Path chave-api.txt) { throw "a opcao 3 nao devia criar chave-api.txt" }
+          if (Test-Path "$dir\chave-api.txt") { throw "a opcao 3 nao devia criar chave-api.txt" }
+          $saida = Get-Content "$dir\m.txt" -Raw
+          if ($saida -match 'Vai abrir o navegador') { throw "a opcao 3 caiu no login da conta" }
+          if ($saida -match 'Cole a sua chave') { throw "a opcao 3 caiu no pedido de chave" }
           Pop-Location
           if (-not $ok) { throw "a opcao 3 deveria subir o app com o gerador local" }
           Write-Host "OK: menu respondido, app no gerador local."
@@ -210,7 +213,8 @@ jobs:
           Remove-Item "$dir\chave-api.txt","$dir\vazio.txt" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
           Push-Location $dir
-          "2`nsk-ant-chave-digitada" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
+          # array -> uma linha por item, com quebra de linha do Windows
+          "2","sk-ant-chave-digitada" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
           $p = Start-Process cmd.exe `
                -ArgumentList '/c','iniciar.bat --porta 8768 --sem-navegador < resposta.txt' `
                -WorkingDirectory $dir `

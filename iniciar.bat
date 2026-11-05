@@ -80,9 +80,12 @@ echo     [3] Agora nao - usar o gerador local de frases
 echo.
 set "OPCAO="
 set /p "OPCAO=  escolha [1]: "
-if "!OPCAO!"=="" set "OPCAO=1"
-if "!OPCAO!"=="1" call :entrar_na_conta
-if "!OPCAO!"=="2" call :pedir_chave
+rem so o primeiro caractere: tolera espaco, resto de quebra de linha e
+rem quem digita "2)" ou "2 " em vez de "2"
+set "ESCOLHA=!OPCAO:~0,1!"
+if "!ESCOLHA!"=="" set "ESCOLHA=1"
+if "!ESCOLHA!"=="1" call :entrar_na_conta
+if "!ESCOLHA!"=="2" call :pedir_chave
 echo.
 
 :preparar_ambiente
@@ -167,7 +170,7 @@ echo   Anthropic. Posso baixa-lo agora para a pasta .ferramentas daqui.
 echo   Origem: https://github.com/anthropics/anthropic-cli/releases
 set "BAIXAR="
 set /p "BAIXAR=  baixar agora? [S/n]: "
-if /i "!BAIXAR!"=="n" goto :eof
+if /i "!BAIXAR:~0,1!"=="n" goto :eof
 echo   Baixando...
 powershell -NoProfile -Command "try { $r = Invoke-RestMethod 'https://api.github.com/repos/anthropics/anthropic-cli/releases/latest'; $v = $r.tag_name.TrimStart('v'); $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {'arm64'} else {'amd64'}; $nome = 'ant_' + $v + '_windows_' + $arq + '.zip'; $url = ($r.assets | Where-Object { $_.name -eq $nome }).browser_download_url; if (-not $url) { exit 2 }; $zip = Join-Path $env:TEMP 'ant-cli.zip'; Invoke-WebRequest -UseBasicParsing $url -OutFile $zip; Expand-Archive -LiteralPath $zip -DestinationPath '.ferramentas' -Force; Remove-Item $zip -ErrorAction SilentlyContinue } catch { Write-Error $_; exit 1 }" 2>"%TEMP%\japones-ant-erro.txt"
 if errorlevel 1 (
