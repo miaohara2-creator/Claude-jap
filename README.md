@@ -186,6 +186,7 @@ em cada caso.
 ```
 iniciar.bat             atalho de duplo clique para Windows
 atualizar.bat           baixa a versão mais recente e reabre o app
+.ferramentas/           utilitário de login `ant` (criada só se você usar a conta)
 app.py                  ponto de entrada (servidor web ou --cli)
 nihongo/
   fsrs.py               FSRS-5: estabilidade, dificuldade, agendamento

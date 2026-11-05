@@ -111,6 +111,12 @@ autenticar (conta Claude, chave de API ou gerador local) e chama `app.py`.
 cairia no login e travaria esperando o navegador; é o que a automação usa. Erros previstos (sem Python, Python antigo, falha no venv)
 têm mensagem própria e `pause` para a janela não sumir.
 
+**Entrada do usuário nos atalhos:** compare só o primeiro caractere da
+resposta (`!OPCAO:~0,1!`). O valor chega com resto de quebra de linha quando
+a entrada vem de arquivo, e uma comparação exata simplesmente não casa — o
+menu fica mudo sem erro nenhum. Pergunte antes da parte lenta, e deixe o
+`chcp 65001` perto do Python, não no prólogo.
+
 `atualizar.bat` baixa o zip do branch pelo codeload, extrai no `%TEMP%` e
 copia por cima da pasta. **Nunca inclua no pacote arquivos do usuário**
 (`chave-api.txt`, `data/progresso.db`, `.venv/`): é o `.gitignore` que
