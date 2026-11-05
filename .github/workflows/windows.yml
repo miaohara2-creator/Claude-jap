@@ -1,0 +1,129 @@
+# Executa os atalhos .bat num Windows de verdade.
+# Os scripts do Windows nao podem ser testados no ambiente de desenvolvimento
+# (Linux), entao esta automacao e a unica verificacao real que eles tem.
+name: Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ccr-32e85758-6zpgck]
+    paths:
+      - "**.bat"
+      - "**.py"
+      - ".github/workflows/windows.yml"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Testes unitarios no Windows
+        run: python -m unittest discover -s tests
+
+      - name: Diagnostico do ambiente
+        shell: cmd
+        run: diagnostico.bat < nul
+
+      - name: iniciar.bat sobe o aplicativo
+        shell: pwsh
+        run: |
+          "" | Out-File -FilePath vazio.txt -Encoding ascii
+          "sk-ant-chave-de-teste-ci" | Out-File -FilePath chave-api.txt -Encoding ascii
+          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8765 --sem-navegador' `
+               -RedirectStandardOutput saida.txt -RedirectStandardError erro.txt `
+               -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/api/estado -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+            if ($p.HasExited) { break }
+          }
+          Write-Host "`n----- saida do iniciar.bat -----"
+          if (Test-Path saida.txt) { Get-Content saida.txt }
+          Write-Host "----- erros -----"
+          if (Test-Path erro.txt) { Get-Content erro.txt }
+          Write-Host "---------------------------------`n"
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $ok) { throw "o aplicativo nao respondeu em http://127.0.0.1:8765" }
+          Write-Host "OK: o aplicativo respondeu."
+
+      - name: iniciar.bat sem chave nao trava no prompt
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\semchave"
+          Copy-Item -Recurse -Force . $dir
+          Remove-Item "$dir\chave-api.txt" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
+          Push-Location $dir
+          "" | Out-File -FilePath vazio.txt -Encoding ascii
+          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8766 --sem-navegador' `
+               -RedirectStandardOutput s.txt -RedirectStandardError e.txt `
+               -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8766/api/estado -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+            if ($p.HasExited) { break }
+          }
+          Write-Host "----- saida -----"; if (Test-Path s.txt) { Get-Content s.txt }
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          Pop-Location
+          if (-not $ok) { throw "sem chave da API o aplicativo deveria subir mesmo assim" }
+          Write-Host "OK: subiu sem chave, usando o gerador local."
+
+      - name: atualizar.bat atualiza e preserva os dados do usuario
+        shell: pwsh
+        run: |
+          # simula uma instalacao antiga do usuario, com progresso e chave
+          $dir = "$env:RUNNER_TEMP\instalado"
+          Copy-Item -Recurse -Force . $dir
+          Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
+          Push-Location $dir
+          "sk-ant-chave-do-usuario" | Out-File -FilePath chave-api.txt -Encoding ascii
+          New-Item -ItemType Directory -Force -Path data | Out-Null
+          python -c "import sys,random; sys.path.insert(0,'.');from nihongo.db import Database;from nihongo.engine import Engine;e=Engine(Database('data/progresso.db'),client=None,rng=random.Random(1));[e.submit(r.item.item_id, r.sentence['id'], r.sentence['ja']) for r in [e.next_round() for _ in range(3)]]"
+          # marca um arquivo para provar que o pacote novo chegou por cima
+          "versao antiga" | Out-File -FilePath app.py -Encoding ascii -Append
+          "" | Out-File -FilePath vazio.txt -Encoding ascii
+          $p = Start-Process cmd.exe -ArgumentList '/c','atualizar.bat' `
+               -RedirectStandardOutput upd.txt -RedirectStandardError upderr.txt `
+               -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/api/estado -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+            if ($p.HasExited) { break }
+          }
+          Write-Host "`n----- saida do atualizar.bat -----"
+          if (Test-Path upd.txt) { Get-Content upd.txt }
+          Write-Host "----- erros -----"
+          if (Test-Path upderr.txt) { Get-Content upderr.txt }
+          Write-Host "----------------------------------`n"
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not (Test-Path chave-api.txt)) { throw "a chave do usuario foi apagada" }
+          if ((Get-Content chave-api.txt -Raw).Trim() -ne "sk-ant-chave-do-usuario") { throw "a chave foi alterada" }
+          if (-not (Test-Path data\progresso.db)) { throw "o progresso foi apagado" }
+          $n = python -c "import sys;sys.path.insert(0,'.');from nihongo.db import Database;print(Database('data/progresso.db').stats()['palavras_aprendidas'])"
+          if ($n.Trim() -ne "3") { throw "o progresso mudou: $n" }
+          if (Select-String -Path app.py -Pattern "versao antiga" -Quiet) { throw "o app.py nao foi substituido" }
+          Pop-Location
+          if (-not $ok) { throw "depois de atualizar, o aplicativo nao subiu" }
+          Write-Host "OK: atualizou, preservou progresso e chave, e abriu o app."
