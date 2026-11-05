@@ -145,26 +145,29 @@ jobs:
           if (-not $ok) { throw "sem chave da API o aplicativo deveria subir mesmo assim" }
           Write-Host "OK: subiu sem chave, usando o gerador local."
 
-      - name: diagnostico - set /p com entrada redirecionada
+      - name: diagnostico - quem consome a entrada padrao
         shell: pwsh
         run: |
           $dir = "$env:RUNNER_TEMP\setp"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          # A: so o set /p   B: sondagens com entrada propria   C: sem entrada propria
           @"
           @echo off
           setlocal enabledelayedexpansion
+          set "VAZIO=%TEMP%\diag-vazio.txt"
+          >"%VAZIO%" echo.
+          if "%~1"=="B" for %%V in (3.18 3.17 3.16 3.15) do "%SystemRoot%\py.exe" -%%V -c "import sys" <"%VAZIO%" 2>"%TEMP%\diag.err"
+          if "%~1"=="C" for %%V in (3.18 3.17 3.16 3.15) do "%SystemRoot%\py.exe" -%%V -c "import sys" 2>"%TEMP%\diag.err"
+          if "%~1"=="D" for %%I in (python.exe) do "%%~`$PATH:I" -c "import sys" <"%VAZIO%" 2>"%TEMP%\diag.err"
+          if "%~1"=="E" for /f "tokens=*" %%K in ('reg query "HKCU\Software\Python\PythonCore" 2^>"%TEMP%\diag.err" ^<"%VAZIO%"') do echo %%K>"%TEMP%\diag.reg"
           set "X="
           set /p "X=  prompt: "
-          echo LIDO=[!X!]
-          "@ | Out-File -FilePath "$dir\teste.bat" -Encoding ascii
+          echo VARIANTE %~1 LEU=[!X!]
+          "@ | Out-File -FilePath "$dir\diag.bat" -Encoding ascii
           "3" | Out-File -FilePath "$dir\entrada.txt" -Encoding ascii
-          Write-Host "--- via redirecionamento do cmd (< arquivo) ---"
-          cmd /c "cd /d $dir && teste.bat < entrada.txt"
-          Write-Host "--- via -RedirectStandardInput do Start-Process ---"
-          $p = Start-Process cmd.exe -ArgumentList '/c','teste.bat' -WorkingDirectory $dir `
-               -RedirectStandardOutput "$dir\o.txt" -RedirectStandardError "$dir\e.txt" `
-               -RedirectStandardInput "$dir\entrada.txt" -PassThru -NoNewWindow -Wait
-          Get-Content "$dir\o.txt"
+          foreach ($v in 'A','B','C','D','E') {
+            cmd /c "cd /d $dir && diag.bat $v < entrada.txt"
+          }
 
       - name: menu de credencial - opcao 3 (gerador local) nao trava
         shell: pwsh
