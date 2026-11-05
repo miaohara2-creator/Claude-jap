@@ -115,8 +115,26 @@ def diretorio_config_anthropic(
 
 
 def conta_claude_conectada(diretorio: Path | None = None) -> bool:
-    """True quando existe um perfil OAuth gravado (conta conectada)."""
-    pasta = (diretorio or diretorio_config_anthropic()) / "credentials"
+    """True quando o SDK consegue resolver um perfil de conta.
+
+    Com `diretorio`, checa os arquivos daquela pasta (usado nos testes e
+    quando o pacote `anthropic` não está instalado). Sem ele, quem responde é
+    o próprio SDK: ele exige `configs/<perfil>.json` **e**
+    `credentials/<perfil>.json` do perfil ativo, e não de um qualquer.
+    """
+    if diretorio is None:
+        try:
+            import anthropic  # noqa: F401
+        except ImportError:
+            diretorio = diretorio_config_anthropic()
+        else:
+            from .claude_client import ClaudeClient
+
+            if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+                return False  # a variável venceria o perfil de qualquer forma
+            return ClaudeClient.erro_de_credencial() is None
+
+    pasta = diretorio / "credentials"
     try:
         return any(pasta.glob("*.json"))
     except OSError:  # pragma: no cover - disco inacessível

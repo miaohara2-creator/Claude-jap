@@ -26,6 +26,8 @@ echo   Japones incremental - uma palavra nova por frase
 echo   -----------------------------------------------
 echo.
 
+if /i "%~1"=="--conectar-conta" goto conectar_conta
+
 rem --- 1. procura um Python 3.9 ou mais novo ---------------------------
 set "PY_EXE="
 set "PY_ARGS="
@@ -222,6 +224,29 @@ goto :eof
 echo     - %~1
 "%~1" --version
 goto :eof
+
+:conectar_conta
+echo   Conectar a sua conta Claude
+echo   ---------------------------
+call :entrar_na_conta
+rem Uma chave de API vence a conta na ordem de precedencia do SDK, entao de
+rem nada adianta conectar a conta e deixar o chave-api.txt no lugar.
+if exist "chave-api.txt" (
+    echo.
+    echo   Existe um chave-api.txt nesta pasta, e ele tem precedencia sobre a
+    echo   conta: enquanto estiver ai, a conta nao sera usada.
+    set "RESP="
+    set /p "RESP=  guardar a chave como chave-api.txt.desativado? [S/n]: "
+    if /i not "!RESP:~0,1!"=="n" (
+        move /y "chave-api.txt" "chave-api.txt.desativado"
+        echo   Pronto. A partir de agora o app usa a sua conta.
+    ) else (
+        echo   Mantida. O app continua usando a chave de API.
+    )
+)
+echo.
+pause
+goto fim
 
 rem --- mensagens de erro -------------------------------------------------
 

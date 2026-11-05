@@ -217,9 +217,12 @@ def serve(
     if "local" in stats["gerador"]:
         from .config import COMANDO_LOGIN
 
-        print(f"\n  Atenção: as frases virão do gerador local, que é limitado.")
-        print(f"  Para a Claude escrevê-las, rode `{COMANDO_LOGIN}` e entre com")
-        print("  a sua conta Claude (ou crie um chave-api.txt nesta pasta).")
+        print("\n  Atenção: as frases virão do gerador local, que é limitado.")
+        print("  Para a Claude escrevê-las, conecte a sua conta: duplo clique em")
+        print(f"  conectar-conta.bat (ou rode `{COMANDO_LOGIN}`).")
+        motivo = engine.client.motivo_indisponivel() if engine.client else None
+        if motivo:
+            print(f"  Motivo atual: {motivo}")
     print("\n  Ctrl+C para encerrar (ou feche esta janela).\n")
     if abrir_navegador:
         _abrir_no_navegador(f"http://{host}:{port}")

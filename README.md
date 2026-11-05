@@ -99,6 +99,11 @@ funcionando com o gerador local (ver *Limitações*).
 Na primeira execução o `iniciar.bat` pergunta como a Claude vai escrever as
 frases:
 
+Já instalado e quer **trocar a chave pela conta**? Duplo clique em
+**`conectar-conta.bat`**: ele faz o login e oferece desativar o
+`chave-api.txt` — enquanto esse arquivo existir, a chave tem precedência e a
+conta não é usada.
+
 **1. Entrar com a sua conta Claude (recomendado).** Abre o navegador, você
 entra na conta e pronto — **nenhuma chave para gerenciar**. O login é feito
 pelo utilitário oficial `ant`, da Anthropic, que o atalho baixa para a pasta
@@ -186,6 +191,7 @@ em cada caso.
 ```
 iniciar.bat             atalho de duplo clique para Windows
 atualizar.bat           baixa a versão mais recente e reabre o app
+conectar-conta.bat      entra com a sua conta Claude (dispensa a chave de API)
 .ferramentas/           utilitário de login `ant` (criada só se você usar a conta)
 app.py                  ponto de entrada (servidor web ou --cli)
 nihongo/

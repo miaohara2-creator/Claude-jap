@@ -255,9 +255,23 @@ class TestContaClaude(unittest.TestCase):
             if self.antigos.get(k):
                 os.environ[k] = self.antigos[k]
 
-    def _criar_perfil(self):
+    def _criar_perfil(self, completo=True):
+        """Escreve um perfil no formato que o SDK realmente exige.
+
+        São dois arquivos: `configs/<perfil>.json` (não secreto, com o bloco
+        `authentication`) e `credentials/<perfil>.json` (o token). Só o
+        segundo não basta — era o engano da primeira versão desta detecção.
+        """
+        import json
+        import time
         (self.dir / "credentials").mkdir(parents=True, exist_ok=True)
-        (self.dir / "credentials" / "default.json").write_text('{"access_token": "x"}')
+        (self.dir / "credentials" / "default.json").write_text(json.dumps(
+            {"type": "oauth_token", "access_token": "tok-de-teste",
+             "expires_at": int(time.time()) + 3600}))
+        if completo:
+            (self.dir / "configs").mkdir(parents=True, exist_ok=True)
+            (self.dir / "configs" / "default.json").write_text(json.dumps(
+                {"authentication": {"type": "user_oauth"}}))
 
     def test_pasta_do_perfil_por_plataforma(self):
         from nihongo.config import diretorio_config_anthropic
@@ -279,6 +293,26 @@ class TestContaClaude(unittest.TestCase):
         self.assertFalse(conta_claude_conectada(self.dir))
         self._criar_perfil()
         self.assertTrue(conta_claude_conectada(self.dir))
+
+    def test_meio_perfil_nao_conta_como_conta_conectada(self):
+        """Regressão: só `credentials/` sem `configs/` não serve ao SDK."""
+        import os
+        from nihongo.claude_client import ClaudeClient
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir)
+        self._criar_perfil(completo=False)
+        erro = ClaudeClient.erro_de_credencial()
+        self.assertIsNotNone(erro)
+        self.assertIn("configs", erro)
+        self.assertFalse(ClaudeClient.credentials_present())
+
+    def test_sem_credencial_o_sdk_constroi_mas_nao_resolve(self):
+        """O cliente constrói sem erro sem credencial; a checagem tem de ver isso."""
+        import os
+        from nihongo.claude_client import ClaudeClient
+        os.environ["ANTHROPIC_CONFIG_DIR"] = str(self.dir / "vazio")
+        erro = ClaudeClient.erro_de_credencial()
+        self.assertIsNotNone(erro)
+        self.assertFalse(ClaudeClient.credentials_present())
 
     def test_conta_vale_como_credencial(self):
         import os

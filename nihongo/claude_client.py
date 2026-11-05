@@ -13,6 +13,8 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+from .config import diretorio_config_anthropic
+
 DEFAULT_MODEL = "claude-opus-5-5"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
@@ -94,10 +96,47 @@ class ClaudeClient:
 
     @staticmethod
     def credentials_present() -> bool:
-        """Há credencial: variável de ambiente, chave em arquivo ou conta conectada."""
-        from .config import origem_credencial
+        """Há credencial utilizável (o SDK é quem responde)."""
+        return ClaudeClient.erro_de_credencial() is None
 
-        return origem_credencial() is not None
+    @staticmethod
+    def erro_de_credencial() -> str | None:
+        """Pergunta ao SDK se alguma credencial resolve; devolve o motivo se não.
+
+        Checar arquivos à mão não serve: o SDK precisa de `configs/<perfil>.json`
+        **e** `credentials/<perfil>.json`, do perfil apontado por
+        ANTHROPIC_PROFILE, pelo arquivo `active_config` ou "default" — detalhes
+        que mudam com a versão do pacote. Construir o cliente é a resposta
+        autoritativa, e a mensagem de erro dele já diz o que falta.
+
+        Atenção: sem credencial nenhuma o cliente **constrói sem erro** e só
+        falha na requisição. Por isso conferimos também o que ele resolveu.
+        """
+        try:
+            import anthropic
+        except ImportError:
+            return None  # tratado em motivo_indisponivel()
+        try:
+            cliente = anthropic.Anthropic()
+        except Exception as exc:  # CredentialsError e parentes
+            return str(exc).strip() or exc.__class__.__name__
+        try:
+            if (
+                cliente.api_key
+                or getattr(cliente, "auth_token", None)
+                or getattr(cliente, "credentials", None)
+            ):
+                return None
+            return (
+                "o SDK não resolveu credencial nenhuma: não há chave de API nem "
+                "perfil de conta em "
+                f"{diretorio_config_anthropic()}"
+            )
+        finally:
+            try:
+                cliente.close()
+            except Exception:  # pragma: no cover
+                pass
 
     def available(self) -> bool:
         return self.motivo_indisponivel() is None
@@ -119,12 +158,14 @@ class ClaudeClient:
                     f"e este é o {atual}"
                 )
             return "o pacote `anthropic` não está instalado"
-        if not self.credentials_present():
+        erro = self.erro_de_credencial()
+        if erro:
             from .config import COMANDO_LOGIN
 
             return (
-                f"nenhuma conta conectada — rode `{COMANDO_LOGIN}` para entrar "
-                "com a sua conta Claude (ou crie um chave-api.txt)"
+                "sem credencial utilizável — no Windows, duplo clique em "
+                "conectar-conta.bat para entrar com a sua conta Claude; fora "
+                f"dele, rode `{COMANDO_LOGIN}`. Detalhe do SDK: {erro}"
             )
         return None
 
@@ -136,14 +177,16 @@ class ClaudeClient:
                 raise ClaudeUnavailable(
                     "O pacote `anthropic` não está instalado (pip install anthropic)."
                 ) from exc
-            if not self.credentials_present():
+            try:
+                self._client = anthropic.Anthropic()
+            except Exception as exc:
                 from .config import COMANDO_LOGIN
 
                 raise ClaudeUnavailable(
-                    f"Nenhuma credencial encontrada: rode `{COMANDO_LOGIN}` para "
-                    "entrar com a sua conta Claude, ou crie um chave-api.txt."
-                )
-            self._client = anthropic.Anthropic()
+                    f"Nenhuma credencial utilizável: rode `{COMANDO_LOGIN}` para "
+                    f"entrar com a sua conta Claude, ou crie um chave-api.txt. "
+                    f"Detalhe do SDK: {exc}"
+                ) from exc
         return self._client
 
     # -- chamada -----------------------------------------------------------

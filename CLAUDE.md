@@ -70,6 +70,13 @@ local. **Não introduza outras dependências sem pedir.**
 
 ## API da Claude
 
+- **Quem decide se há credencial é o SDK**, não uma checagem de arquivos:
+  `ClaudeClient.erro_de_credencial()` constrói `anthropic.Anthropic()` e
+  confere o que ele resolveu. Dois detalhes que derrubaram a versão anterior:
+  o perfil exige `configs/<perfil>.json` **e** `credentials/<perfil>.json` (só
+  o segundo não serve), e **sem credencial nenhuma o cliente constrói sem
+  erro** — falha só na requisição —, então é preciso olhar `api_key`,
+  `auth_token` e `credentials` do cliente.
 - **Credencial:** três fontes, nesta precedência (a mesma do SDK): variável
   de ambiente, `chave-api.txt`, conta conectada (perfil OAuth de
   `ant auth login`, em `%APPDATA%\Anthropic` no Windows). Nunca defina
