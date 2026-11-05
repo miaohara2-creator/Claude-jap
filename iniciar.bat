@@ -75,19 +75,25 @@ if not exist "!VENV_PY!" (
     echo.
 )
 
-rem --- 3. chave da API, perguntada uma unica vez ------------------------
+rem --- 3. credencial da Claude, perguntada uma unica vez ----------------
+rem Tres caminhos: conta Claude (perfil OAuth em %APPDATA%\Anthropic),
+rem chave de API em arquivo, ou nenhum (gerador local).
+rem saida para uso nao-interativo (automacao): nao pergunta nada
+if not "%NIHONGO_SEM_PERGUNTAS%"=="" goto rodar
+if exist "%APPDATA%\Anthropic\credentials\*.json" goto rodar
 if exist "chave-api.txt" goto rodar
 if not "%ANTHROPIC_API_KEY%"=="" goto rodar
-echo   Para a Claude escrever as frases, cole abaixo a sua chave da API.
-echo   ^(Enter em branco usa o gerador local; da para configurar depois
-echo    criando o arquivo chave-api.txt nesta pasta.^)
+echo   Como a Claude vai escrever as frases?
 echo.
-set "CHAVE="
-set /p "CHAVE=  chave: "
-if not "!CHAVE!"=="" (
-    >chave-api.txt echo !CHAVE!
-    echo   Chave salva em chave-api.txt ^(nao vai para o repositorio^).
-)
+echo     [1] Entrar com a minha conta Claude  ^(recomendado^)
+echo     [2] Colar uma chave de API
+echo     [3] Agora nao - usar o gerador local de frases
+echo.
+set "OPCAO="
+set /p "OPCAO=  escolha [1]: "
+if "!OPCAO!"=="" set "OPCAO=1"
+if "!OPCAO!"=="1" call :entrar_na_conta
+if "!OPCAO!"=="2" call :pedir_chave
 echo.
 
 :rodar
@@ -126,6 +132,62 @@ goto :eof
 
 :do_registro_versao
 for /f "tokens=2,*" %%A in ('reg query "%~1\InstallPath" /ve 2^>"%ERRFILE%"') do call :testar "%%B\python.exe"
+goto :eof
+
+:pedir_chave
+echo.
+echo   Cole a sua chave da API ^(Enter em branco cancela^):
+set "CHAVE="
+set /p "CHAVE=  chave: "
+if "!CHAVE!"=="" goto :eof
+>chave-api.txt echo !CHAVE!
+echo   Chave salva em chave-api.txt ^(nao vai para o repositorio^).
+goto :eof
+
+:entrar_na_conta
+rem O login usa o utilitario oficial `ant`, da Anthropic. Ele grava um
+rem perfil em %APPDATA%\Anthropic que o pacote anthropic encontra sozinho.
+set "ANT="
+if exist "%~dp0.ferramentas\ant.exe" set "ANT=%~dp0.ferramentas\ant.exe"
+if not defined ANT for %%I in (ant.exe) do set "ANT=%%~$PATH:I"
+if defined ANT goto fazer_login
+echo.
+echo   Para entrar com a sua conta eu preciso do utilitario `ant`, da
+echo   Anthropic. Posso baixa-lo agora para a pasta .ferramentas daqui.
+echo   Origem: https://github.com/anthropics/anthropic-cli/releases
+set "BAIXAR="
+set /p "BAIXAR=  baixar agora? [S/n]: "
+if /i "!BAIXAR!"=="n" goto :eof
+echo   Baixando...
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod 'https://api.github.com/repos/anthropics/anthropic-cli/releases/latest'; $v = $r.tag_name.TrimStart('v'); $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {'arm64'} else {'amd64'}; $nome = 'ant_' + $v + '_windows_' + $arq + '.zip'; $url = ($r.assets ^| Where-Object { $_.name -eq $nome }).browser_download_url; if (-not $url) { exit 2 }; $zip = Join-Path $env:TEMP 'ant-cli.zip'; Invoke-WebRequest -UseBasicParsing $url -OutFile $zip; Expand-Archive -LiteralPath $zip -DestinationPath '.ferramentas' -Force; Remove-Item $zip -ErrorAction SilentlyContinue } catch { exit 1 }"
+if errorlevel 1 (
+    echo   Nao consegui baixar o utilitario. Voce pode:
+    echo     - baixar a mao em https://github.com/anthropics/anthropic-cli/releases
+    echo       ^(ant_^<versao^>_windows_amd64.zip^), extrair o ant.exe na pasta
+    echo       .ferramentas daqui, e rodar este atalho de novo; ou
+    echo     - usar uma chave de API, rodando este atalho e escolhendo [2].
+    goto :eof
+)
+if not exist "%~dp0.ferramentas\ant.exe" (
+    echo   O download terminou mas nao achei o ant.exe em .ferramentas.
+    goto :eof
+)
+set "ANT=%~dp0.ferramentas\ant.exe"
+
+:fazer_login
+echo.
+echo   Vai abrir o navegador para voce entrar na sua conta Claude.
+echo   Terminando por la, volte para esta janela.
+echo.
+"!ANT!" auth login
+if exist "%APPDATA%\Anthropic\credentials\*.json" (
+    echo.
+    echo   Conta conectada. Nao precisa de chave de API.
+) else (
+    echo.
+    echo   O login nao foi concluido. O app vai usar o gerador local por
+    echo   enquanto; rode este atalho de novo para tentar outra vez.
+)
 goto :eof
 
 :mostrar_versao

@@ -124,6 +124,7 @@ jobs:
           Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
           Push-Location $dir
           "" | Out-File -FilePath vazio.txt -Encoding ascii
+          $env:NIHONGO_SEM_PERGUNTAS = "1"
           $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8766 --sem-navegador' `
                -RedirectStandardOutput s.txt -RedirectStandardError e.txt `
                -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
@@ -142,6 +143,84 @@ jobs:
           Pop-Location
           if (-not $ok) { throw "sem chave da API o aplicativo deveria subir mesmo assim" }
           Write-Host "OK: subiu sem chave, usando o gerador local."
+
+      - name: menu de credencial - opcao 3 (gerador local) nao trava
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\menu3"
+          Copy-Item -Recurse -Force . $dir
+          Remove-Item "$dir\chave-api.txt","$dir\vazio.txt" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
+          Push-Location $dir
+          "3" | Out-File -FilePath resposta.txt -Encoding ascii
+          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8767 --sem-navegador' `
+               -RedirectStandardOutput m.txt -RedirectStandardError me.txt `
+               -RedirectStandardInput resposta.txt -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8767/api/estado -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch { }
+            if ($p.HasExited) { break }
+          }
+          Write-Host "----- saida -----"; if (Test-Path m.txt) { Get-Content m.txt }
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (Test-Path chave-api.txt) { throw "a opcao 3 nao devia criar chave-api.txt" }
+          Pop-Location
+          if (-not $ok) { throw "a opcao 3 deveria subir o app com o gerador local" }
+          Write-Host "OK: menu respondido, app no gerador local."
+
+      - name: menu de credencial - opcao 2 grava a chave
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\menu2"
+          Copy-Item -Recurse -Force . $dir
+          Remove-Item "$dir\chave-api.txt","$dir\vazio.txt" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
+          Push-Location $dir
+          "2`nsk-ant-chave-digitada" | Out-File -FilePath resposta.txt -Encoding ascii
+          $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8768 --sem-navegador' `
+               -RedirectStandardOutput m.txt -RedirectStandardError me.txt `
+               -RedirectStandardInput resposta.txt -PassThru -NoNewWindow
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            if (Test-Path chave-api.txt) { break }
+            if ($p.HasExited) { break }
+          }
+          Write-Host "----- saida -----"; if (Test-Path m.txt) { Get-Content m.txt }
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not (Test-Path chave-api.txt)) { throw "a opcao 2 deveria gravar chave-api.txt" }
+          $conteudo = (Get-Content chave-api.txt -Raw).Trim()
+          if ($conteudo -ne "sk-ant-chave-digitada") { throw "chave gravada errada: $conteudo" }
+          Pop-Location
+          Write-Host "OK: chave digitada foi gravada."
+
+      # Mesma logica que o iniciar.bat usa para buscar o utilitario de login.
+      # Nao da para testar `ant auth login` (abre navegador), mas o download
+      # e a parte fragil: depende do nome do asset publicado pela Anthropic.
+      - name: download do utilitario de login funciona
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\antdl"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Push-Location $dir
+          $r = Invoke-RestMethod 'https://api.github.com/repos/anthropics/anthropic-cli/releases/latest'
+          $v = $r.tag_name.TrimStart('v')
+          $arq = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {'arm64'} else {'amd64'}
+          $nome = 'ant_' + $v + '_windows_' + $arq + '.zip'
+          $url = ($r.assets | Where-Object { $_.name -eq $nome }).browser_download_url
+          if (-not $url) { throw "a Anthropic nao publica mais $nome" }
+          $zip = Join-Path $env:TEMP 'ant-cli.zip'
+          Invoke-WebRequest -UseBasicParsing $url -OutFile $zip
+          Expand-Archive -LiteralPath $zip -DestinationPath '.ferramentas' -Force
+          if (-not (Test-Path '.ferramentas\ant.exe')) { throw "ant.exe nao veio no pacote" }
+          & '.ferramentas\ant.exe' --version
+          Pop-Location
+          Write-Host "OK: $nome baixado e executavel."
 
       - name: atualizar.bat atualiza e preserva os dados do usuario
         shell: pwsh

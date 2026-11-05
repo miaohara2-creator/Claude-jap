@@ -94,15 +94,30 @@ python3 app.py
 Abra <http://127.0.0.1:8765>. Sem chave de API o aplicativo continua
 funcionando com o gerador local (ver *Limitações*).
 
-### A chave da API
+### Credencial da Claude
 
-Em vez da variável de ambiente, você pode criar um arquivo **`chave-api.txt`**
-na pasta do projeto com a chave numa linha (é o que o `iniciar.bat` faz por
-você). A variável de ambiente tem precedência; linhas começadas por `#` são
-ignoradas. O arquivo está no `.gitignore` e nunca é enviado ao repositório.
+Na primeira execução o `iniciar.bat` pergunta como a Claude vai escrever as
+frases:
 
-Se a chave estiver errada, o app não quebra: avisa na tela em bom português,
-passa a usar o gerador local e para de tentar até você corrigir e reiniciar.
+**1. Entrar com a sua conta Claude (recomendado).** Abre o navegador, você
+entra na conta e pronto — **nenhuma chave para gerenciar**. O login é feito
+pelo utilitário oficial `ant`, da Anthropic, que o atalho baixa para a pasta
+`.ferramentas` se você autorizar. Ele grava um perfil em
+`%APPDATA%\Anthropic` que o pacote `anthropic` encontra sozinho. Para trocar
+de conta depois: `.ferramentas\ant.exe auth login`; para sair:
+`.ferramentas\ant.exe auth logout`.
+
+**2. Colar uma chave de API.** Fica num arquivo `chave-api.txt` na pasta do
+projeto, uma linha, com `#` para comentários. Está no `.gitignore`.
+
+**3. Nenhuma das duas.** O app funciona com o gerador local de frases, que é
+bem mais limitado.
+
+A ordem de precedência é a mesma do SDK oficial: variável de ambiente
+`ANTHROPIC_API_KEY` → `chave-api.txt` → conta conectada. O rodapé do app
+mostra qual delas está em uso, então nada é decidido em silêncio — e se a
+credencial for recusada, o app avisa em bom português, passa para o gerador
+local e para de tentar até você corrigir e reiniciar.
 
 ```bash
 python3 app.py --porta 9000            # outra porta

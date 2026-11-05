@@ -42,7 +42,7 @@ local. **Não introduza outras dependências sem pedir.**
 | `nihongo/templates.py` | Gerador local de reserva (corpus + moldes). |
 | `nihongo/grading.py` | Correção da resposta do aluno. |
 | `nihongo/engine.py` | Orquestra: escolhe a palavra, obtém a frase, aplica o FSRS. |
-| `nihongo/config.py` | Lê a chave da API de `chave-api.txt` quando não há variável de ambiente. |
+| `nihongo/config.py` | Credenciais: conta Claude conectada, `chave-api.txt` ou variável de ambiente. |
 | `nihongo/server.py`, `cli.py` | Interface web (stdlib `http.server`) e terminal. |
 | `web/` | HTML/CSS/JS sem framework nem CDN. |
 
@@ -70,6 +70,12 @@ local. **Não introduza outras dependências sem pedir.**
 
 ## API da Claude
 
+- **Credencial:** três fontes, nesta precedência (a mesma do SDK): variável
+  de ambiente, `chave-api.txt`, conta conectada (perfil OAuth de
+  `ant auth login`, em `%APPDATA%\Anthropic` no Windows). Nunca defina
+  `ANTHROPIC_API_KEY` quando a credencial for a conta: a variável venceria o
+  perfil e o login seria ignorado. `config.origem_credencial()` diz qual
+  está em uso e isso aparece na interface.
 - Modelo padrão `claude-opus-5-5`. Não troque sem o usuário pedir.
 - Saída estruturada via `output_config={"format": {"type": "json_schema", ...}}`.
 - `betas` e `fallbacks` só existem em `client.beta.messages.create`.
@@ -99,8 +105,10 @@ vocabulário inteiro e falha se alguma forma quebrar.
 Mantenha o arquivo **em ASCII puro e com quebras CRLF**: o `cmd.exe` lê o
 script enquanto executa, e caracteres não-ASCII antes do `chcp 65001` viram
 lixo na tela. O japonês aparece pelo Python, com `PYTHONUTF8=1`.
-O script cria `.venv`, instala `anthropic`, pergunta a chave uma única vez e
-chama `app.py`. Erros previstos (sem Python, Python antigo, falha no venv)
+O script cria `.venv`, instala `anthropic`, pergunta **uma única vez** como
+autenticar (conta Claude, chave de API ou gerador local) e chama `app.py`.
+`NIHONGO_SEM_PERGUNTAS=1` pula esse menu — sem isso, uma execução sem entrada
+cairia no login e travaria esperando o navegador; é o que a automação usa. Erros previstos (sem Python, Python antigo, falha no venv)
 têm mensagem própria e `pause` para a janela não sumir.
 
 `atualizar.bat` baixa o zip do branch pelo codeload, extrai no `%TEMP%` e
