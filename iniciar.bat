@@ -52,6 +52,12 @@ call :do_registro HKLM
 
 if not defined PY_EXE goto sem_python
 echo   Python: !PY_EXE! !PY_ARGS!
+"!PY_EXE!" !PY_ARGS! -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" 2>"%ERRFILE%"
+if errorlevel 1 (
+    echo   [nota] O app roda neste Python, mas o pacote da Claude exige 3.10
+    echo          ou mais novo: as frases virao do gerador local. Instalar um
+    echo          Python atual em https://www.python.org/downloads/ resolve.
+)
 
 rem --- 2. ambiente proprio, criado uma unica vez ------------------------
 set "VENV_PY=%~dp0.venv\Scripts\python.exe"

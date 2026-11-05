@@ -582,8 +582,10 @@ class Engine:
             base["gerador"] = "local (a API da Claude recusou a chave)"
         elif self.client and self.client.available():
             base["gerador"] = f"Claude ({self.client.model})"
+        elif self.client:
+            base["gerador"] = f"local ({self.client.motivo_indisponivel()})"
         else:
-            base["gerador"] = "local (sem ANTHROPIC_API_KEY)"
+            base["gerador"] = "local (gerador de frases embutido)"
         return base
 
     def agenda(self, limit: int = 100) -> list[dict]:

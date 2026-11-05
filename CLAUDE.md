@@ -19,7 +19,13 @@ python3 -m unittest discover -s tests   # 76 testes — rode antes de concluir q
 
 Só a biblioteca padrão do Python (3.9+) é obrigatória. O piso é 3.9 porque
 o código não usa nada mais novo; a automação do Windows testa 3.9, 3.10 e
-3.12 e falha se alguma mudança quebrar isso. `anthropic` é opcional
+3.12 e falha se alguma mudança quebrar isso. O pacote opcional `anthropic`
+exige 3.10+, então em 3.9 o app roda com o gerador local — `ClaudeClient.
+motivo_indisponivel()` explica isso ao usuário em vez de só sumir com a API.
+
+**Saída em japonês:** `config.configurar_saida_utf8()` é chamado no início de
+`app.py`. Sem isso o app morre com `UnicodeEncodeError` num console cp1252
+(o padrão do Windows). Não remova, e não dependa do `iniciar.bat` para isso. `anthropic` é opcional
 e habilita a geração de frases; sem `ANTHROPIC_API_KEY` o app cai no gerador
 local. **Não introduza outras dependências sem pedir.**
 

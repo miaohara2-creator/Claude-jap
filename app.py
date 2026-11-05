@@ -28,7 +28,7 @@ if sys.version_info < VERSAO_MINIMA:  # pragma: no cover
         "Baixe em https://python.org/downloads"
     )
 
-from nihongo.config import carregar_chave_local
+from nihongo.config import carregar_chave_local, configurar_saida_utf8
 from nihongo.server import serve
 
 
@@ -45,6 +45,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="não abrir o navegador automaticamente")
     args = parser.parse_args(argv)
 
+    configurar_saida_utf8()
     carregar_chave_local()
 
     if args.cli:

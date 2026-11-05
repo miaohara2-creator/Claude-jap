@@ -62,7 +62,10 @@ sozinho (cerca de um minuto): cria um ambiente Python próprio na pasta
 `.venv`, instala a biblioteca da Claude e pergunta a sua chave da API. Depois
 disso, cada clique sobe o aplicativo em poucos segundos e abre o navegador.
 
-O único pré-requisito é o **Python 3.9 ou mais novo**. Se não tiver, o
+O único pré-requisito é o **Python 3.9 ou mais novo** — mas para a Claude
+escrever as frases é preciso **3.10 ou mais novo**, porque é o que o pacote
+`anthropic` exige. Com 3.9 o aplicativo funciona normalmente, só que com o
+gerador local; o atalho avisa quando é esse o caso. Se não tiver, o
 atalho avisa e manda o link: baixe em <https://www.python.org/downloads/> e
 marque **"Add python.exe to PATH"** na tela de instalação.
 

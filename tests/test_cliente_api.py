@@ -99,7 +99,9 @@ class TestClienteClaude(unittest.TestCase):
         # recuperacao automatica em caso de recusa
         self.assertEqual(corpo["fallbacks"], "default")
         self.assertIn("server-side-fallback", RECEBIDO[0]["beta"] or "")
-        self.assertEqual(RECEBIDO[0]["caminho"], "/v1/messages")
+        # versões mais antigas do SDK acrescentam ?beta=true ao caminho
+        self.assertTrue(RECEBIDO[0]["caminho"].startswith("/v1/messages"),
+                        RECEBIDO[0]["caminho"])
         # sem amostragem nem budget_tokens (removidos nos modelos atuais)
         self.assertNotIn("temperature", corpo)
         self.assertNotIn("thinking", corpo)

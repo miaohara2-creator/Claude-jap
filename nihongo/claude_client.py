@@ -103,11 +103,28 @@ class ClaudeClient:
         return False
 
     def available(self) -> bool:
+        return self.motivo_indisponivel() is None
+
+    def motivo_indisponivel(self) -> str | None:
+        """Por que a Claude não pode gerar as frases agora (ou None)."""
         try:
             import anthropic  # noqa: F401
         except ImportError:
-            return False
-        return self.credentials_present()
+            import sys
+
+            from .config import VERSAO_MINIMA_API, python_suporta_api
+
+            if not python_suporta_api():
+                atual = ".".join(str(n) for n in sys.version_info[:2])
+                alvo = ".".join(str(n) for n in VERSAO_MINIMA_API)
+                return (
+                    f"o pacote `anthropic` exige Python {alvo} ou mais novo, "
+                    f"e este é o {atual}"
+                )
+            return "o pacote `anthropic` não está instalado"
+        if not self.credentials_present():
+            return "não há chave da API (ANTHROPIC_API_KEY ou chave-api.txt)"
+        return None
 
     def _ensure_client(self):
         if self._client is None:

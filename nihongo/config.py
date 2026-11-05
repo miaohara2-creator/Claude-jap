@@ -8,6 +8,7 @@ tem precedencia; o arquivo e apenas a alternativa conveniente.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -40,3 +41,26 @@ def carregar_chave_local(raiz: Path | None = None) -> str | None:
         os.environ["ANTHROPIC_API_KEY"] = chave
         return "arquivo"
     return None
+
+
+def configurar_saida_utf8() -> None:
+    """Garante que o terminal aceite japonês.
+
+    No Windows o console costuma usar cp1252, e qualquer `print` com kanji
+    derruba o aplicativo com UnicodeEncodeError. Isso acontece sempre que o
+    app é iniciado fora do `iniciar.bat` (que define PYTHONUTF8) ou com a
+    saída redirecionada. Reconfigurar aqui resolve na origem.
+    """
+    for fluxo in (sys.stdout, sys.stderr):
+        try:
+            fluxo.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):  # pragma: no cover
+            pass
+
+
+#: O pacote `anthropic` exige Python 3.10+. O app em si roda em 3.9.
+VERSAO_MINIMA_API = (3, 10)
+
+
+def python_suporta_api() -> bool:
+    return sys.version_info >= VERSAO_MINIMA_API

@@ -77,3 +77,39 @@ class TestCorrecao(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSaidaUTF8(unittest.TestCase):
+    """O app imprime japonês; um console cp1252 não pode derrubá-lo."""
+
+    def test_print_de_japones_em_console_cp1252(self):
+        import io
+        import sys
+
+        from nihongo.config import configurar_saida_utf8
+
+        original = sys.stdout
+        buffer = io.BytesIO()
+        sys.stdout = io.TextIOWrapper(buffer, encoding="cp1252")
+        try:
+            configurar_saida_utf8()
+            print("日本語 — aprendizado incremental de japonês")
+            sys.stdout.flush()
+            # o buffer é fechado junto com o wrapper ao restaurar o stdout
+            escrito = buffer.getvalue()
+        finally:
+            sys.stdout = original
+        self.assertIn("日本語".encode("utf-8"), escrito)
+
+    def test_funciona_com_fluxo_sem_reconfigure(self):
+        import io
+        import sys
+
+        from nihongo.config import configurar_saida_utf8
+
+        original = sys.stdout
+        sys.stdout = io.StringIO()   # não tem .reconfigure
+        try:
+            configurar_saida_utf8()  # não pode levantar exceção
+        finally:
+            sys.stdout = original
