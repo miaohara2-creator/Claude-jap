@@ -148,8 +148,11 @@ goto :eof
 rem O login usa o utilitario oficial `ant`, da Anthropic. Ele grava um
 rem perfil em %APPDATA%\Anthropic que o pacote anthropic encontra sozinho.
 set "ANT="
+rem Preferimos a nossa copia. Atencao: o Apache Ant (ferramenta de build
+rem Java) tambem se chama ant.exe, entao um ant do PATH so vale se
+rem responder ao subcomando `auth`, que so o utilitario da Anthropic tem.
 if exist "%~dp0.ferramentas\ant.exe" set "ANT=%~dp0.ferramentas\ant.exe"
-if not defined ANT for %%I in (ant.exe) do set "ANT=%%~$PATH:I"
+if not defined ANT for %%I in (ant.exe) do call :validar_ant "%%~$PATH:I"
 if defined ANT goto fazer_login
 echo.
 echo   Para entrar com a sua conta eu preciso do utilitario `ant`, da
@@ -173,6 +176,19 @@ if not exist "%~dp0.ferramentas\ant.exe" (
     goto :eof
 )
 set "ANT=%~dp0.ferramentas\ant.exe"
+
+:validar_ant
+if "%~1"=="" goto :eof
+if not exist "%~1" goto :eof
+"%~1" auth status >"%TEMP%\japones-ant.txt" 2>&1
+findstr /i /c:"Buildfile" "%TEMP%\japones-ant.txt" >"%TEMP%\japones-ant.chk" 2>&1
+if not errorlevel 1 (
+    echo   ^(ignorando o Apache Ant em %~1 - nao e o utilitario da Anthropic^)
+    goto :eof
+)
+findstr /i /c:"auth" "%TEMP%\japones-ant.txt" >"%TEMP%\japones-ant.chk" 2>&1
+set "ANT=%~1"
+goto :eof
 
 :fazer_login
 echo.

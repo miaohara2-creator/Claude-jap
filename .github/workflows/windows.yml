@@ -126,8 +126,9 @@ jobs:
           "" | Out-File -FilePath vazio.txt -Encoding ascii
           $env:NIHONGO_SEM_PERGUNTAS = "1"
           $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8766 --sem-navegador' `
-               -RedirectStandardOutput s.txt -RedirectStandardError e.txt `
-               -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
+               -WorkingDirectory $dir `
+               -RedirectStandardOutput "$dir\s.txt" -RedirectStandardError "$dir\e.txt" `
+               -RedirectStandardInput "$dir\vazio.txt" -PassThru -NoNewWindow
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
             Start-Sleep -Seconds 2
@@ -152,10 +153,13 @@ jobs:
           Remove-Item "$dir\chave-api.txt","$dir\vazio.txt" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
           Push-Location $dir
-          "3" | Out-File -FilePath resposta.txt -Encoding ascii
+          # Start-Process nao herda o Push-Location do PowerShell: a pasta e
+          # os arquivos de redirecionamento precisam ser explicitos.
+          "3" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
           $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8767 --sem-navegador' `
-               -RedirectStandardOutput m.txt -RedirectStandardError me.txt `
-               -RedirectStandardInput resposta.txt -PassThru -NoNewWindow
+               -WorkingDirectory $dir `
+               -RedirectStandardOutput "$dir\m.txt" -RedirectStandardError "$dir\me.txt" `
+               -RedirectStandardInput "$dir\resposta.txt" -PassThru -NoNewWindow
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
             Start-Sleep -Seconds 2
@@ -181,10 +185,11 @@ jobs:
           Remove-Item "$dir\chave-api.txt","$dir\vazio.txt" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "$dir\.venv" -ErrorAction SilentlyContinue
           Push-Location $dir
-          "2`nsk-ant-chave-digitada" | Out-File -FilePath resposta.txt -Encoding ascii
+          "2`nsk-ant-chave-digitada" | Out-File -FilePath "$dir\resposta.txt" -Encoding ascii
           $p = Start-Process cmd.exe -ArgumentList '/c','iniciar.bat --porta 8768 --sem-navegador' `
-               -RedirectStandardOutput m.txt -RedirectStandardError me.txt `
-               -RedirectStandardInput resposta.txt -PassThru -NoNewWindow
+               -WorkingDirectory $dir `
+               -RedirectStandardOutput "$dir\m.txt" -RedirectStandardError "$dir\me.txt" `
+               -RedirectStandardInput "$dir\resposta.txt" -PassThru -NoNewWindow
           for ($i = 0; $i -lt 90; $i++) {
             Start-Sleep -Seconds 2
             if (Test-Path chave-api.txt) { break }
@@ -241,8 +246,9 @@ jobs:
           "versao antiga" | Out-File -FilePath app.py -Encoding ascii -Append
           "" | Out-File -FilePath vazio.txt -Encoding ascii
           $p = Start-Process cmd.exe -ArgumentList '/c','atualizar.bat' `
-               -RedirectStandardOutput upd.txt -RedirectStandardError upderr.txt `
-               -RedirectStandardInput vazio.txt -PassThru -NoNewWindow
+               -WorkingDirectory $dir `
+               -RedirectStandardOutput "$dir\upd.txt" -RedirectStandardError "$dir\upderr.txt" `
+               -RedirectStandardInput "$dir\vazio.txt" -PassThru -NoNewWindow
           $ok = $false
           for ($i = 0; $i -lt 120; $i++) {
             Start-Sleep -Seconds 2
@@ -253,9 +259,9 @@ jobs:
             if ($p.HasExited) { break }
           }
           Write-Host "`n----- saida do atualizar.bat -----"
-          if (Test-Path upd.txt) { Get-Content upd.txt }
+          if (Test-Path "$dir\upd.txt") { Get-Content "$dir\upd.txt" }
           Write-Host "----- erros -----"
-          if (Test-Path upderr.txt) { Get-Content upderr.txt }
+          if (Test-Path "$dir\upderr.txt") { Get-Content "$dir\upderr.txt" }
           Write-Host "----------------------------------`n"
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force
